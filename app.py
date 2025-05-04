@@ -1,7 +1,7 @@
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
-
+import json
 import streamlit as st
 import openai
 import os
@@ -43,8 +43,14 @@ if team_name:
     # ✅ 3. Drive API 연결
     SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
               'https://www.googleapis.com/auth/documents.readonly']
-    creds = service_account.Credentials.from_service_account_file(
-        "GOOGLE_SERVICE_ACCOUNT", scopes=SCOPES)
+    google_service_account_info = st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"]
+
+    # JSON 형식으로 파싱
+    credentials_info = json.loads(google_service_account_info)
+
+    # Credentials 생성
+    creds = service_account.Credentials.from_service_account_info(credentials_info, scopes=SCOPES)
+
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
 
