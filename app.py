@@ -7,9 +7,6 @@ from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-# 인증 정보로 서비스 계정 생성
-creds = service_account.Credentials.from_service_account_info(google_creds)
-
 # ✅ 0. 환경 설정
 load_dotenv()
 openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
