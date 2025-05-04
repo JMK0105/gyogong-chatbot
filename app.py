@@ -42,14 +42,16 @@ if team_name:
     # ✅ 3. Drive API 연결
     SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
               'https://www.googleapis.com/auth/documents.readonly']
-    google_service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
+   
+google_service_account_info = st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"]
 
-    # JSON 형식으로 파싱
+# JSON 문자열 파싱
+try:
     credentials_info = json.loads(google_service_account_info)
-
-    # Credentials 생성
-    creds = service_account.Credentials.from_service_account_info(credentials_info, scopes=SCOPES)
-
+except json.JSONDecodeError as e:
+    st.error(f"JSONDecodeError: {e}")
+    raise
+    
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
 
