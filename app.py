@@ -7,9 +7,6 @@ from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-# 서비스 계정 JSON을 secrets에서 가져오기
-google_creds = json.loads(st.secrets["google"]["service_account_json"])
-
 # 인증 정보로 서비스 계정 생성
 creds = service_account.Credentials.from_service_account_info(google_creds)
 
