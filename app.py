@@ -43,7 +43,7 @@ if team_name:
     SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
               'https://www.googleapis.com/auth/documents.readonly']
     creds = service_account.Credentials.from_service_account_file(
-        'gyogong-bot-c839d592e2ac.json', scopes=SCOPES)
+        './gyogong-bot-c839d592e2ac.json', scopes=SCOPES)
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
 
