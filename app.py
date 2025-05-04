@@ -1,5 +1,7 @@
 import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
+
 import streamlit as st
 import openai
 import os
@@ -41,16 +43,11 @@ if team_name:
     # ✅ 3. Drive API 연결
     SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
               'https://www.googleapis.com/auth/documents.readonly']
-
-    credentials_info = st.secrets["google_cloud"]
-    
-    creds = service_account.Credentials.from_service_account_info(
-        credentials_info, scopes=SCOPES)
-    
+    creds = service_account.Credentials.from_service_account_file(
+        "GOOGLE_SERVICE_ACCOUNT", scopes=SCOPES)
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
-    
-    
+
     # ✅ 4. 팀 폴더에서 회차별 문서 목록 불러오기
     results = drive_service.files().list(
         q=f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.document'",
