@@ -42,7 +42,7 @@ if team_name:
     # ✅ 3. Drive API 연결
     SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
               'https://www.googleapis.com/auth/documents.readonly']
-    google_service_account_info = st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"]
+    google_service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
 
     # JSON 형식으로 파싱
     credentials_info = json.loads(google_service_account_info)
