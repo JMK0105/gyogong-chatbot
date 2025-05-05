@@ -40,17 +40,12 @@ if team_name:
     folder_id = folder_ids[team_name]
 
     # ✅ 3. Drive API 연결
-    SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
-              'https://www.googleapis.com/auth/documents.readonly']
-   
-    import json
-
     google_service_account_info = st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"]
     credentials_info = json.loads(google_service_account_info)
     creds = service_account.Credentials.from_service_account_info(
         credentials_info,
-        scopes=['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/documents.readonly']
-    )
+    SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
+              'https://www.googleapis.com/auth/documents.readonly']
     
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
