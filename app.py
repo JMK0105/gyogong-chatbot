@@ -45,7 +45,7 @@ if team_name:
     creds = service_account.Credentials.from_service_account_info(
         credentials_info,
     SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
-              'https://www.googleapis.com/auth/documents.readonly']
+              'https://www.googleapis.com/auth/documents.readonly'])
     
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
