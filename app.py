@@ -43,16 +43,14 @@ if team_name:
     SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
               'https://www.googleapis.com/auth/documents.readonly']
    
+    import json
+
     google_service_account_info = st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"]
-
-# JSON 문자열 파싱
-    try:
-        credentials_info = json.loads(google_service_account_info)
-    except json.JSONDecodeError as e:
-        st.error(f"JSONDecodeError: {e}")
-        raise
-
-    creds = service_account.Credentials.from_service_account_info(credentials_info, scopes=SCOPES)
+    credentials_info = json.loads(google_service_account_info)
+    creds = service_account.Credentials.from_service_account_info(
+        credentials_info,
+        scopes=['https://www.googleapis.com/auth/drive.readonly', 'https://www.googleapis.com/auth/documents.readonly']
+    )
     
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
