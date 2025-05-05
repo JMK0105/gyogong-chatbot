@@ -9,8 +9,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 # ✅ 0. 환경 설정
-load_dotenv()
-openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # ✅ 1. 팀 코드 설정
 team_codes = {
