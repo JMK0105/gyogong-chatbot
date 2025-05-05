@@ -43,7 +43,7 @@ if team_name:
     SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
               'https://www.googleapis.com/auth/documents.readonly']
    
-    google_service_account_info = st.secrets["GOOGLE_SERVICE_ACCOUNT"]
+    google_service_account_info = st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"]
 
 # JSON 문자열 파싱
     try:
