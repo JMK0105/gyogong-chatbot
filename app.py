@@ -88,10 +88,17 @@ def save_to_sheet(gc, team_name, title, parsed):
         st.error(f"❌ 저장 실패: {e}")
         return False
 
-# ✅ 대시보드 표시 함수
+# ✅ 전체 대시보드 표시 함수
 def display_dashboard(creds, team_name):
     from dashboard import display_dashboard as inner_dashboard
     inner_dashboard(creds, team_name)
+
+# ✅ 회의록 단일 분석 대시보드
+def display_single_dashboard(parsed_result):
+    st.subheader("📌 이번 회의 요약 대시보드")
+    st.markdown(f"**👍 잘한 점**\n\n{parsed_result.get('잘한 점', '-')}")
+    st.markdown(f"**⚠️ 개선점**\n\n{parsed_result.get('개선점', '-')}")
+    st.markdown(f"**✨ 다음 회의 추천 포인트**\n\n{parsed_result.get('다음 회의 추천', '-')}")
 
 # ✅ 인증 및 분석 로직 실행
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
@@ -173,11 +180,18 @@ if st.session_state.authenticated:
         if st.session_state.result_text:
             st.subheader("📋 분석 결과")
             st.write(st.session_state.result_text)
-            filename = f"{selected_file}_분석결과.pdf"
+
             if st.button("📄 분석 결과 PDF로 저장"):
+                filename = f"{selected_file}_분석결과.pdf"
                 export_pdf(st.session_state.result_text, filename)
                 with open(filename, "rb") as f:
                     st.download_button("⬇️ PDF 다운로드", f, file_name=filename)
 
-    if st.button("📊 대시보드 보기"):
-        display_dashboard(creds, team_name)
+            if st.button("📈 이번 회의 대시보드 보기"):
+                parsed = extract_structured_feedback(st.session_state.result_text)
+                display_single_dashboard(parsed)
+
+    st.markdown("---")
+    if st.session_state.authenticated:
+        if st.button("📊 전체 진행 그래프 보기"):
+            display_dashboard(creds, team_name)
