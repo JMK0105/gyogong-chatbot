@@ -168,7 +168,6 @@ if team_name:
                 result_text = response.choices[0].message.content
                 st.subheader("📋 분석 결과")
                 st.write(result_text)
-    )
 
     history_df = load_team_history(gc, team_name)
     context_summary = build_context_summary(history_df)
