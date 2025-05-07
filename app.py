@@ -178,3 +178,6 @@ if team_name:
 else:
     if code_input != "":
         st.error("❌ 팀 코드가 올바르지 않습니다.")
+
+if st.button("📊 대시보드 보기"):
+    display_dashboard(creds, team_name)
