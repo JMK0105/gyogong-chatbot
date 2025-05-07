@@ -169,28 +169,6 @@ if team_name:
                 st.subheader("📋 분석 결과")
                 st.write(result_text)
 
-    history_df = load_team_history(gc, team_name)
-    context_summary = build_context_summary(history_df)
-
-    with st.spinner("GPT가 회의록을 분석 중입니다..."):
-        response = openai_client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": f"""
-당신은 팀 프로젝트 회의 내용을 누적적으로 분석하는 교육용 챗봇입니다.
-다음은 이 팀의 과거 회의 내용 요약입니다. 이 맥락을 바탕으로 최신 회의 내용을 분석하고 다음을 제시하세요.
-
-[과거 회의 요약]
-{context_summary}
-
-[이번 회의 내용]"""},
-                {"role": "user", "content": meeting_text}
-            ]
-        )
-        result_text = response.choices[0].message.content
-        st.subheader("📋 분석 결과")
-        st.write(result_text)
-
     if 'result_text' in locals():
         parsed = extract_structured_feedback(result_text)
         if parsed:
