@@ -1,5 +1,3 @@
-import gspread
-from datetime import datetime
 import json
 import streamlit as st
 import openai
@@ -8,7 +6,11 @@ from googleapiclient.discovery import build
 import pandas as pd
 import altair as alt
 
-# ✅ 초기 세션 상태 설정
+# 초기 세션 상태 설정
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "team_name" not in st.session_state:
+    st.session_state.team_name = ""
 if "meeting_text" not in st.session_state:
     st.session_state.meeting_text = ""
 if "result_text" not in st.session_state:
@@ -16,15 +18,9 @@ if "result_text" not in st.session_state:
 if "selected_file" not in st.session_state:
     st.session_state.selected_file = ""
 
-# ✅ 분석 결과 파싱 함수
+# 분석 결과 파싱 함수
 def extract_structured_feedback(text):
-    sections = {
-        "역할 정리": "",
-        "누락": "",
-        "참여도": "",
-        "현재 단계": "",
-        "개선 제안": ""
-    }
+    sections = {"역할 정리": "", "누락": "", "참여도": "", "현재 단계": "", "개선 제안": ""}
     for key in sections.keys():
         if key in text:
             try:
@@ -37,7 +33,7 @@ def extract_structured_feedback(text):
                 sections[key] = ""
     return sections
 
-# ✅ 팀 회의 데이터 불러오기
+# 팀 회의 데이터 불러오기
 def load_team_history(gc, team_name):
     sh = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY")
     worksheet = sh.sheet1
@@ -47,7 +43,7 @@ def load_team_history(gc, team_name):
     team_df = df[df['팀명'] == team_name].sort_values(by='시간')
     return team_df
 
-# ✅ 회의 맥락 요약
+# 회의 맥락 요약
 def build_context_summary(team_df):
     summary = ""
     for _, row in team_df.iterrows():
@@ -58,10 +54,10 @@ def build_context_summary(team_df):
         summary += f"- 개선 제안: {row['개선 제안']}\n\n"
     return summary
 
-# ✅ 대시보드 함수
+# 대시보드 함수
 def display_dashboard(gc, team_name):
     df = load_team_history(gc, team_name)
-    st.header(f"📊 {team_name} 대시보드")
+    st.header(f"\U0001F4CA {team_name} 대시보드")
 
     if '현재 단계' in df.columns:
         st.subheader("1️⃣ 프로젝트 단계 추이")
@@ -94,30 +90,39 @@ def display_dashboard(gc, team_name):
             )
             st.altair_chart(bar, use_container_width=True)
         else:
-            st.info("🔍 아직 리더로 언급된 인원이 없습니다.")
+            st.info("\U0001F50D 아직 리더로 언급된 인원이 없습니다.")
 
     if '개선 제안' in df.columns:
         st.subheader("5️⃣ 회의별 개선 제안 요약")
         for _, row in df.iterrows():
-            st.markdown(f"**🗓 {row['시간'].strftime('%Y-%m-%d %H:%M')} - {row.get('회의록 제목', row.get('회의록 회차 선택', ''))}**")
+            st.markdown(f"**\U0001F4C5 {row['시간'].strftime('%Y-%m-%d %H:%M')} - {row.get('회의록 제목', row.get('회의록 회차 선택', ''))}**")
             st.markdown(f"> {row['개선 제안']}")
 
-# ✅ 메인 앱 실행
+# 메인 앱 실행
 st.set_page_config(page_title="교공이", layout="centered")
-st.title("🤖 교공이 챗봇 - 팀 프로젝트 회의록 분석")
+st.title("\U0001F916 교공이 챗봇 - 팀 프로젝트 회의록 분석")
 
-# 인증
-code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password", key="team_code")
 team_codes = {"A팀": "2025", "B팀": "2024"}
 folder_ids = {"A팀": "1-9vL1B5O2LoS1uyBzPK3Y6kIfOSKG-Fo", "B팀": "1BFqy-38ZOFEvxvqPBwRo5-SOaVSoK-oL"}
-team_name = next((team for team, code in team_codes.items() if code_input == code), None)
 
-if team_name:
-    st.success(f"🎉 인증 완료: {team_name}")
+# 인증 처리
+if not st.session_state.authenticated:
+    code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
+    if code_input:
+        team_name = next((team for team, code in team_codes.items() if code_input == code), None)
+        if team_name:
+            st.session_state.authenticated = True
+            st.session_state.team_name = team_name
+            st.success(f"🎉 인증 완료: {team_name}")
+        else:
+            st.error("❌ 팀 코드가 올바르지 않습니다.")
+
+# 인증 이후 실행
+if st.session_state.authenticated:
+    team_name = st.session_state.team_name
     folder_id = folder_ids[team_name]
     openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-    # 구글 인증
     SCOPES = [
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive.readonly',
@@ -129,7 +134,6 @@ if team_name:
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
 
-    # 회의록 파일 가져오기
     results = drive_service.files().list(
         q=f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.document'",
         pageSize=10,
@@ -153,6 +157,7 @@ if team_name:
                 for elem in v['paragraph'].get('elements', []) if 'textRun' in elem
             )
             st.session_state.meeting_text = meeting_text
+
             history_df = load_team_history(gc, team_name)
             context_summary = build_context_summary(history_df)
 
@@ -196,11 +201,6 @@ if team_name:
                         st.success("📌 스프레드시트에 저장되었습니다.")
                     except Exception as e:
                         st.error(f"❌ 저장 실패: {e}")
-            else:
-                st.warning("❗ 분석 결과에서 항목을 추출할 수 없습니다.")
 
         if st.button("📊 대시보드 보기", key="dashboard"):
             display_dashboard(gc, team_name)
-else:
-    if code_input:
-        st.error("❌ 팀 코드가 올바르지 않습니다.")
