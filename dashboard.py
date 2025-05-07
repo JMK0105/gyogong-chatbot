@@ -9,50 +9,6 @@ import gspread
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
-
-def extract_structured_feedback(text):
-    sections = {
-        "역할 정리": "",
-        "누락": "",
-        "참여도": "",
-        "현재 단계": "",
-        "개선 제안": ""
-    }
-    for key in sections.keys():
-        if key in text:
-            try:
-                after = text.split(key)[1]
-                for next_key in sections.keys():
-                    if next_key != key and next_key in after:
-                        after = after.split(next_key)[0]
-                sections[key] = after.strip()
-            except:
-                sections[key] = ""
-    return sections
-
-
-def load_team_history(creds, team_name):
-    gc = gspread.authorize(creds)
-    sh = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY")
-    worksheet = sh.sheet1
-    data = worksheet.get_all_records()
-    df = pd.DataFrame(data)
-    df["시간"] = pd.to_datetime(df["시간"])
-    team_df = df[df['팀명'] == team_name].sort_values(by='시간')
-    return team_df
-
-
-def build_context_summary(team_df):
-    summary = ""
-    for idx, row in team_df.iterrows():
-        summary += f"[{row['시간']}] {row['회의록 제목'] if '회의록 제목' in row else row['회의록 회차 선택']}\n"
-        summary += f"- 역할 정리: {row['역할 정리']}\n"
-        summary += f"- 참여도: {row['참여도']}\n"
-        summary += f"- 현재 단계: {row['현재 단계']}\n"
-        summary += f"- 개선 제안: {row['개선 제안']}\n\n"
-    return summary
-
-
 def display_dashboard(creds, team_name):
     try:
         team_df = load_team_history(creds, team_name)
@@ -74,5 +30,29 @@ def display_dashboard(creds, team_name):
         for i, row in team_df.iterrows():
             st.markdown(f"**{row['시간'].strftime('%Y-%m-%d %H:%M')}** - {row['회의록 회차 선택']}")
             st.write(f"💡 {row['개선 제안']}")
+
+        # ✅ 역할별 기여도 분석 (파이차트)
+        st.subheader("📌 역할별 기여도 분석")
+        roles = team_df["역할 정리"].dropna().str.extractall(r"([가-힣]+)\s*[:：]")
+        role_counts = roles[0].value_counts()
+        fig, ax = plt.subplots()
+        role_counts.plot(kind='pie', autopct='%1.1f%%', startangle=90, ax=ax)
+        ax.set_ylabel("")
+        ax.set_title("역할별 기여 비율")
+        st.pyplot(fig)
+
+        # ✅ 리더 역할 빈도 분석 (막대 차트)
+        st.subheader("👑 리더 언급 빈도")
+        leaders = team_df["역할 정리"].dropna().str.extractall(r"([가-힣]+)\s*[:：].*리더")
+        leader_counts = leaders[0].value_counts()
+        if not leader_counts.empty:
+            fig, ax = plt.subplots()
+            leader_counts.plot(kind='bar', ax=ax)
+            ax.set_xlabel("이름")
+            ax.set_ylabel("리더 언급 횟수")
+            ax.set_title("리더 역할 언급된 횟수")
+            st.pyplot(fig)
+        else:
+            st.info("❗️아직 리더 역할로 명시된 인원이 없습니다.")
     except Exception as e:
         st.error(f"대시보드를 불러오는 데 실패했습니다: {e}")
