@@ -6,6 +6,30 @@ import openai
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
+import pandas as pd  # ✅ 추가됨
+
+# ✅ 누적된 팀 회의 데이터 로딩
+def load_team_history(creds, team_name):
+    gc = gspread.authorize(creds)
+    sh = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY")
+    worksheet = sh.sheet1
+    data = worksheet.get_all_records()
+    df = pd.DataFrame(data)
+    team_df = df[df['팀명'] == team_name].sort_values(by='시간')
+    return team_df
+
+# ✅ 누적 요약 생성
+def build_context_summary(team_df):
+    summary = ""
+    for idx, row in team_df.iterrows():
+        summary += f"[{row['시간']}] {row['회의록 제목'] if '회의록 제목' in row else row['회의록 회차 선택']}\n"
+        summary += f"- 역할 정리: {row['역할 정리']}\n"
+        summary += f"- 참여도: {row['참여도']}\n"
+        summary += f"- 현재 단계: {row['현재 단계']}\n"
+        summary += f"- 개선 제안: {row['개선 제안']}\n\n"
+    return summary
+
+
 # ✅ 분석 결과 정리 함수 추가
 def extract_structured_feedback(text):
     sections = {
@@ -101,29 +125,32 @@ if team_name:
                                 text += elem['textRun']['content']
                 return text
 
+            # ✅ 회의 텍스트 준비 후
             meeting_text = extract_text(doc_content)
 
-            # ✅ 6. GPT 분석 요청
+            # ✅ 팀 회의 히스토리 요약 추가
+            team_df = load_team_history(creds, team_name)
+            context_summary = build_context_summary(team_df)
+
+            # ✅ GPT 요청 (context 포함)
             with st.spinner("GPT가 회의록을 분석 중입니다..."):
                 response = openai_client.chat.completions.create(
-                    model="gpt-4",  
+                    model="gpt-4",
                     messages=[
-                        {"role": "system", "content": """
-당신은 팀 프로젝트 회의록을 분석하는 교육용 챗봇입니다. 아래 회의 내용을 보고 다음을 알려주세요:
+                        {"role": "system", "content": f"""
+당신은 팀 프로젝트 회의 내용을 누적적으로 분석하는 교육용 챗봇입니다.
+다음은 이 팀의 과거 회의 내용 요약입니다. 이 맥락을 바탕으로 최신 회의 내용을 분석하고 다음을 제시하세요.
 
-1. 프로젝트 진행 사항 파악
-2. 역할 정리
-3. 누락된 역할이나 미정 항목
-4. 참여도 분석 (소극적 참여자, 리더 역할 등)
-5. 전체 프로젝트 흐름에서 현재 단계 진단 및 앞으로의 방향 피드백
-6. 긍정적인 피드백과 개선 제안
-""" },
-                        {"role": "user", "content": meeting_text}
-                    ] 
-                ) 
+[과거 회의 요약]
+{context_summary}
+
+[이번 회의 내용]"""},  # ✅ system 메시지 종료는 여기까지
+                        {"role": "user", "content": meeting_text}  # ✅ 유저 발화 따로 분리
+                    ]
+                )
                 result_text = response.choices[0].message.content
                 st.subheader("📋 분석 결과") 
-                st.write(result_text) 
+                st.write(result_text)
 
                 # ✅ 분석 결과 정리
                 parsed_result = extract_structured_feedback(result_text)
@@ -132,7 +159,7 @@ if team_name:
                 try:
                     gc = gspread.authorize(creds)
                     sh = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY")
-                    worksheet = sh.sheet1  # 첫 시트 사용
+                    worksheet = sh.sheet1
 
                     worksheet.append_row([
                         datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
