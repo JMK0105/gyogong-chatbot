@@ -104,6 +104,29 @@ if team_name:
                 st.subheader("📋 분석 결과")
                 st.write(response.choices[0].message.content)
 
+# ✅ 분석 결과 정리
+    parsed_result = extract_structured_feedback(result_text)
+
+    # ✅ Google Sheets에 저장
+    try:
+        gc = gspread.authorize(creds)
+        sh = gc.open_by_key(1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY)
+        worksheet = sh.sheet1  # 첫 시트 사용
+
+        worksheet.append_row([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            team_name,
+            selected_file,
+            parsed_result["역할 정리"],
+            parsed_result["누락/미정"],
+            parsed_result["참여도"],
+            parsed_result["현재 단계"],
+            parsed_result["개선 제안"]
+        ])
+        st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
+    except Exception as e:
+        st.error(f"❌ Sheets 저장 실패: {e}")
+
 else:
     if code_input != "":
         st.error("❌ 팀 코드가 올바르지 않습니다.")
