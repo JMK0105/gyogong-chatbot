@@ -58,7 +58,7 @@ def load_team_history(gc, team_name):
     worksheet = sh.sheet1
     data = worksheet.get_all_records()
     df = pd.DataFrame(data)
-    df.columns = df.columns.str.strip()  # 컬럼명 공백 제거
+    df.columns = [str(col).strip() for col in df.columns]  # 컬럼명 공백 제거
     st.write("✅ 시트 컬럼명:", df.columns.tolist())  # 디버그용 출력
     if '시간' not in df.columns:
         st.warning("⚠️ 구글시트에 '시간' 컬럼이 존재하지 않습니다. 데이터 형식을 확인해주세요.")
@@ -73,11 +73,10 @@ def build_context_summary(team_df):
         return "※ 과거 회의 요약이 없습니다. 이번 회의 내용을 중심으로 분석을 진행해주세요.\n"
     summary = ""
     for _, row in team_df.iterrows():
-        summary += f"[{row['시간']}] {row.get('회의록 제목', row.get('회의록 회차 선택', '제목 없음'))}\n"
-        summary += f"- 역할 정리: {row.get('역할 정리', '')}\n"
-        summary += f"- 참여도: {row.get('참여도', '')}\n"
-        summary += f"- 현재 단계: {row.get('현재 단계', '')}\n"
-        summary += f"- 개선 제안: {row.get('개선 제안', '')}\n\n"
+        summary += f"[{row['시간']}] {row.get('회의록 제목', '제목 없음')}\n"
+        summary += f"- 잘한 점: {row.get('잘한 점', '')}\n"
+        summary += f"- 개선점: {row.get('개선점', '')}\n"
+        summary += f"- 다음 회의 추천: {row.get('다음회의 추천', '')}\n\n"
     return summary
 
 # 대시보드 함수
