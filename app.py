@@ -58,7 +58,8 @@ if team_name:
     folder_id = folder_ids[team_name]
 
     # ✅ 3. Drive API 연결
-    SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
+    SCOPES = ['https://www.googleapis.com/auth/spreadsheets',
+              'https://www.googleapis.com/auth/drive.readonly',
               'https://www.googleapis.com/auth/documents.readonly']
     
     google_service_account_info = st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"]
