@@ -1,58 +1,58 @@
 from datetime import datetime
 import json
 import streamlit as st
-import openai
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import gspread
 from google.oauth2 import service_account
-from googleapiclient.discovery import build
+
+# ✅ 회의 기록 불러오기
+
+def load_team_history(creds, team_name):
+    sh = gspread.authorize(creds).open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY")
+    worksheet = sh.sheet1
+    data = worksheet.get_all_records()
+    df = pd.DataFrame(data)
+    df.columns = [str(col).strip() for col in df.columns]
+    if '시간' not in df.columns:
+        return pd.DataFrame()
+    df['시간'] = pd.to_datetime(df['시간'], errors='coerce')
+    return df[df['팀명'] == team_name].sort_values(by='시간')
+
+# ✅ 대시보드 함수
 
 def display_dashboard(creds, team_name):
-    try:
-        team_df = load_team_history(creds, team_name)
+    team_df = load_team_history(creds, team_name)
+    if team_df.empty:
+        st.info("❗ 아직 회의 기록이 없습니다. 첫 회의를 진행해보세요!")
+        return
 
-        st.subheader("📈 프로젝트 진행 단계 추이")
-        plt.figure(figsize=(10, 4))
-        sns.lineplot(data=team_df, x="시간", y="현재 단계", marker="o")
-        plt.xticks(rotation=45)
-        st.pyplot(plt)
+    st.subheader("📈 프로젝트 진행 단계 추이")
+    plt.figure(figsize=(10, 4))
+    sns.lineplot(data=team_df, x="시간", y="현재 단계", marker="o")
+    plt.xticks(rotation=45)
+    st.pyplot(plt)
 
-        st.subheader("👥 참여도 분포")
-        fig, ax = plt.subplots(figsize=(10, 4))
-        team_df["참여도"].value_counts().plot(kind="bar", ax=ax)
-        ax.set_ylabel("횟수")
-        ax.set_xlabel("참여도 유형")
-        st.pyplot(fig)
+    st.subheader("📋 완료/미완료 체크표")
+    if "현재 단계" in team_df.columns:
+        status_counts = team_df["현재 단계"].value_counts()
+        st.write(status_counts.to_frame(name="횟수"))
 
-        st.subheader("🔧 개선 제안 요약")
-        for i, row in team_df.iterrows():
-            st.markdown(f"**{row['시간'].strftime('%Y-%m-%d %H:%M')}** - {row['회의록 회차 선택']}")
-            st.write(f"💡 {row['개선 제안']}")
-
-        # ✅ 역할별 기여도 분석 (파이차트)
+    if "역할 정리" in team_df.columns:
         st.subheader("📌 역할별 기여도 분석")
         roles = team_df["역할 정리"].dropna().str.extractall(r"([가-힣]+)\s*[:：]")
         role_counts = roles[0].value_counts()
-        fig, ax = plt.subplots()
-        role_counts.plot(kind='pie', autopct='%1.1f%%', startangle=90, ax=ax)
-        ax.set_ylabel("")
-        ax.set_title("역할별 기여 비율")
-        st.pyplot(fig)
-
-        # ✅ 리더 역할 빈도 분석 (막대 차트)
-        st.subheader("👑 리더 언급 빈도")
-        leaders = team_df["역할 정리"].dropna().str.extractall(r"([가-힣]+)\s*[:：].*리더")
-        leader_counts = leaders[0].value_counts()
-        if not leader_counts.empty:
+        if not role_counts.empty:
             fig, ax = plt.subplots()
-            leader_counts.plot(kind='bar', ax=ax)
-            ax.set_xlabel("이름")
-            ax.set_ylabel("리더 언급 횟수")
-            ax.set_title("리더 역할 언급된 횟수")
+            role_counts.plot(kind='pie', autopct='%1.1f%%', startangle=90, ax=ax)
+            ax.set_ylabel("")
+            ax.set_title("역할별 기여 비율")
             st.pyplot(fig)
         else:
-            st.info("❗️아직 리더 역할로 명시된 인원이 없습니다.")
-    except Exception as e:
-        st.error(f"대시보드를 불러오는 데 실패했습니다: {e}")
+            st.info("🔍 역할 분담 정보가 충분하지 않습니다.")
+
+    st.subheader("💡 회의별 개선 제안 요약")
+    for _, row in team_df.iterrows():
+        st.markdown(f"**📅 {row['시간'].strftime('%Y-%m-%d %H:%M')} - {row.get('회의록 제목', '')}**")
+        st.markdown(f"> {row.get('개선점', '')}")
