@@ -8,8 +8,15 @@ from googleapiclient.discovery import build
 import pandas as pd
 import altair as alt
 
-# ✅ 분석 결과 정리 함수
+# ✅ 초기 세션 상태 설정
+if "meeting_text" not in st.session_state:
+    st.session_state.meeting_text = ""
+if "result_text" not in st.session_state:
+    st.session_state.result_text = ""
+if "selected_file" not in st.session_state:
+    st.session_state.selected_file = ""
 
+# ✅ 분석 결과 파싱 함수
 def extract_structured_feedback(text):
     sections = {
         "역할 정리": "",
@@ -30,8 +37,7 @@ def extract_structured_feedback(text):
                 sections[key] = ""
     return sections
 
-# ✅ 팀 회의 데이터 로딩
-
+# ✅ 팀 회의 데이터 불러오기
 def load_team_history(gc, team_name):
     sh = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY")
     worksheet = sh.sheet1
@@ -41,8 +47,7 @@ def load_team_history(gc, team_name):
     team_df = df[df['팀명'] == team_name].sort_values(by='시간')
     return team_df
 
-# ✅ 맥락 요약 생성
-
+# ✅ 회의 맥락 요약
 def build_context_summary(team_df):
     summary = ""
     for _, row in team_df.iterrows():
@@ -53,8 +58,7 @@ def build_context_summary(team_df):
         summary += f"- 개선 제안: {row['개선 제안']}\n\n"
     return summary
 
-# ✅ 대시보드 표시 함수
-
+# ✅ 대시보드 함수
 def display_dashboard(gc, team_name):
     df = load_team_history(gc, team_name)
     st.header(f"📊 {team_name} 대시보드")
@@ -99,32 +103,33 @@ def display_dashboard(gc, team_name):
             st.markdown(f"> {row['개선 제안']}")
 
 # ✅ 메인 앱 실행
-
 st.set_page_config(page_title="교공이", layout="centered")
 st.title("🤖 교공이 챗봇 - 팀 프로젝트 회의록 분석")
 
-code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
+# 인증
+code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password", key="team_code")
 team_codes = {"A팀": "2025", "B팀": "2024"}
 folder_ids = {"A팀": "1-9vL1B5O2LoS1uyBzPK3Y6kIfOSKG-Fo", "B팀": "1BFqy-38ZOFEvxvqPBwRo5-SOaVSoK-oL"}
 team_name = next((team for team, code in team_codes.items() if code_input == code), None)
 
-openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
 if team_name:
     st.success(f"🎉 인증 완료: {team_name}")
     folder_id = folder_ids[team_name]
+    openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-    # 인증 및 서비스 객체 생성
-    SCOPES = ['https://www.googleapis.com/auth/spreadsheets',
-              'https://www.googleapis.com/auth/drive.readonly',
-              'https://www.googleapis.com/auth/documents.readonly']
+    # 구글 인증
+    SCOPES = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive.readonly',
+        'https://www.googleapis.com/auth/documents.readonly'
+    ]
     creds_info = json.loads(st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"])
     creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
     gc = gspread.authorize(creds)
-
     drive_service = build('drive', 'v3', credentials=creds)
     docs_service = build('docs', 'v1', credentials=creds)
 
+    # 회의록 파일 가져오기
     results = drive_service.files().list(
         q=f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.document'",
         pageSize=10,
@@ -136,9 +141,10 @@ if team_name:
         st.warning("이 팀 폴더에 회의록이 없습니다.")
     else:
         file_dict = {f["name"]: f["id"] for f in sorted(files, key=lambda x: x['createdTime'])}
-        selected_file = st.selectbox("📝 회의록 회차 선택", list(file_dict.keys()))
+        selected_file = st.selectbox("📝 회의록 회차 선택", list(file_dict.keys()), key="file_select")
+        st.session_state.selected_file = selected_file
 
-        if st.button("분석 시작"):
+        if st.button("🔍 회의록 분석 시작", key="analyze"):
             doc = docs_service.documents().get(documentId=file_dict[selected_file]).execute()
             elements = doc.get("body", {}).get("content", [])
             meeting_text = ''.join(
@@ -146,7 +152,7 @@ if team_name:
                 for v in elements if 'paragraph' in v
                 for elem in v['paragraph'].get('elements', []) if 'textRun' in elem
             )
-
+            st.session_state.meeting_text = meeting_text
             history_df = load_team_history(gc, team_name)
             context_summary = build_context_summary(history_df)
 
@@ -165,37 +171,36 @@ if team_name:
                         {"role": "user", "content": meeting_text}
                     ]
                 )
-                result_text = response.choices[0].message.content
-                st.subheader("📋 분석 결과")
-                st.write(result_text)
+                st.session_state.result_text = response.choices[0].message.content
+                st.success("✅ GPT 분석 완료!")
 
-    if 'result_text' in locals():
-        parsed = extract_structured_feedback(result_text)
-        if parsed:
-            try:
-                worksheet = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY").sheet1
-                worksheet.append_row([
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    team_name,
-                    selected_file,
-                    parsed.get("역할 정리", ""),
-                    parsed.get("누락", ""),
-                    parsed.get("참여도", ""),
-                    parsed.get("현재 단계", ""),
-                    parsed.get("개선 제안", "")
-                ])
-                st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
-            except Exception as e:
-                st.error(f"❌ Sheets 저장 실패: {e}")
-        else:
-            st.error("❌ 분석 결과에서 내용을 추출할 수 없습니다.")
-    else:
-        st.error("❌ GPT 분석 결과가 없습니다.")
+        if st.session_state.result_text:
+            st.subheader("📋 분석 결과")
+            st.write(st.session_state.result_text)
 
-if st.button("📊 대시보드 보기"):
-    display_dashboard(gc, team_name)
-    
+            parsed = extract_structured_feedback(st.session_state.result_text)
+            if parsed:
+                if st.button("💾 분석 결과 저장", key="save"):
+                    try:
+                        worksheet = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY").sheet1
+                        worksheet.append_row([
+                            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            team_name,
+                            st.session_state.selected_file,
+                            parsed.get("역할 정리", ""),
+                            parsed.get("누락", ""),
+                            parsed.get("참여도", ""),
+                            parsed.get("현재 단계", ""),
+                            parsed.get("개선 제안", "")
+                        ])
+                        st.success("📌 스프레드시트에 저장되었습니다.")
+                    except Exception as e:
+                        st.error(f"❌ 저장 실패: {e}")
+            else:
+                st.warning("❗ 분석 결과에서 항목을 추출할 수 없습니다.")
+
+        if st.button("📊 대시보드 보기", key="dashboard"):
+            display_dashboard(gc, team_name)
 else:
     if code_input:
         st.error("❌ 팀 코드가 올바르지 않습니다.")
-
