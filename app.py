@@ -92,18 +92,20 @@ if team_name:
                         {"role": "system", "content": """
 당신은 팀 프로젝트 회의록을 분석하는 교육용 챗봇입니다. 아래 회의 내용을 보고 다음을 알려주세요:
 
-1. 발언자별 역할 정리
-2. 누락된 역할이나 미정 항목
-3. 참여도 분석 (소극적 참여자, 리더 역할 등)
-4. 전체 프로젝트 흐름에서 현재 단계 진단
-5. 긍정적인 피드백과 개선 제안
+1. 프로젝트 진행 사항 파악
+2. 역할 정리
+3. 누락된 역할이나 미정 항목
+4. 참여도 분석 (소극적 참여자, 리더 역할 등)
+5. 전체 프로젝트 흐름에서 현재 단계 진단 및 앞으로의 방향 피드백
+6. 긍정적인 피드백과 개선 제안
 """ },
                         {"role": "user", "content": meeting_text}
                     ]
                 )
-                st.subheader("📋 분석 결과")
-                st.write(response.choices[0].message.content)
-
+    result_text = response.choices[0].message.content
+    st.subheader("📋 분석 결과")
+    st.write(result_text)
+            
 # ✅ 분석 결과 정리
     parsed_result = extract_structured_feedback(result_text)
 
