@@ -9,7 +9,12 @@ import pandas as pd
 import altair as alt
 import base64
 
-# 초기 세션 상태 설정
+# 팀 코드 입력 및 회의록 선택 복구
+st.set_page_config(page_title="교공이", layout="centered")
+st.title("🤖 교공이 챗봇")
+team_codes = {"A팀": "2025", "B팀": "2024"}
+folder_ids = {"A팀": "1-9vL1B5O2LoS1uyBzPK3Y6kIfOSKG-Fo", "B팀": "1BFqy-38ZOFEvxvqPBwRo5-SOaVSoK-oL"}
+
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "team_name" not in st.session_state:
@@ -20,6 +25,17 @@ if "result_text" not in st.session_state:
     st.session_state.result_text = ""
 if "selected_file" not in st.session_state:
     st.session_state.selected_file = ""
+
+if not st.session_state.authenticated:
+    code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
+    if code_input:
+        team_name = next((team for team, code in team_codes.items() if code_input == code), None)
+        if team_name:
+            st.session_state.authenticated = True
+            st.session_state.team_name = team_name
+            st.success(f"🎉 인증 완료: {team_name}")
+        else:
+            st.error("❌ 팀 코드가 올바르지 않습니다.")
 
 # 분석 결과 파싱 함수 (시스템 프롬프트 기반)
 def extract_structured_feedback(text):
@@ -97,67 +113,3 @@ def display_dashboard(gc, team_name):
         for _, row in df.iterrows():
             st.markdown(f"**\U0001F4C5 {row['시간'].strftime('%Y-%m-%d %H:%M')} - {row.get('회의록 제목', row.get('회의록 회차 선택', ''))}**")
             st.markdown(f"> {row.get('개선 제안', '')}")
-
-# GPT 텍스트 피드백 생성 함수
-def generate_gpt_feedback(openai_client, context_summary, meeting_text):
-    response = openai_client.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": f"""
-당신은 교육공학 수업의 기말 프로젝트를 수행 중인 예비 교사 팀의 회의 내용을 분석하는 챗봇입니다.  
-이 팀은 중등 교사가 되어 교사 대상 원격 직무연수 콘텐츠인 「에듀테크 활용 PBL 수업 실천법」 과정을 설계하고 있습니다.  
-학생들은 이 프로젝트를 통해 실제 교육 현장에서 적용 가능한 수업 사례가 포함된, 강의 콘텐츠를 설계해야 합니다.
-
-회의 내용을 바탕으로 아래의 두 가지 관점에서 팀의 현재 상태를 분석해주세요.
----
-[1️⃣ 팀워크 관점 분석]
-아래 요소들을 고려해서 팀의 협업 상황을 분석해줘. 다만, 학생들이 부담 느끼지 않도록 가장 중요한 2~3가지 항목만 추려서 알려줘.
-- 역할 분담이 명확하고 균형적이었는지
-- 아이디어가 다양하고 창의적이었는지
-- 의견 조율, 갈등 해결, 결론 도출 등 협업의 질이 어땠는지
-- 회의 마무리에서 다음 회의 준비나 성찰이 있었는지
-
-[2️⃣ 콘텐츠 방향성 분석]
-회의 중 논의된 강의안/수업지도안/사례 제안 등이 다음 평가 기준에 얼마나 잘 맞는지 판단해줘:
-- 중등교사 대상 ‘에듀테크 활용 PBL 수업 실천 연수’라는 과정에 적합한 흐름인지
-- 제시된 수업 사례가 교과 맥락에 맞고 교육적으로 타당한지
-- 교사가 실제 수업에 적용할 수 있을 만큼 구체적인지
-- 콘텐츠 전체 구조와 흐름이 자연스러운지
-- 교사가 듣고 쉽게 이해하고 따라할 수 있는 전달력이 있는지
-[출력 형식 예시]
-1. 👍 잘한 점:
-2. ⚠️ 주요 개선점:
-3. ✨ 다음 회의 추천 포인트:
-※ 말투는 교수처럼 딱딱하지 않고, 팀 선배처럼 따뜻하고 실용적인 조언 스타일로 해주세요.
-다음은 이 팀의 과거 회의 내용 요약입니다. 이 맥락을 바탕으로 최신 회의 내용을 분석하고 다음을 제시하세요.
-
-[과거 회의 요약]
-{context_summary}
-
-[이번 회의 내용]"""},
-            {"role": "user", "content": meeting_text}
-        ]
-    )
-    return response.choices[0].message.content
-
-# 분석 결과 저장 함수
-def save_feedback_to_sheet(gc, parsed, team_name, selected_file):
-    try:
-        worksheet = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY").sheet1
-        worksheet.append_row([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            team_name,
-            selected_file,
-            parsed.get("잘한 점", ""),
-            parsed.get("개선점", ""),
-            parsed.get("다음 회의 추천", "")
-        ])
-        return True, "📌 스프레드시트에 저장되었습니다."
-    except Exception as e:
-        return False, f"❌ 저장 실패: {e}"
-
-# 분석 결과 내보내기 함수
-def export_feedback(result_text):
-    b64 = base64.b64encode(result_text.encode()).decode()
-    href = f'<a href="data:text/plain;base64,{b64}" download="회의_분석_결과.txt">📥 분석 결과 TXT 파일로 다운로드</a>'
-    st.markdown(href, unsafe_allow_html=True)
