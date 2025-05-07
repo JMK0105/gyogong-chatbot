@@ -100,11 +100,11 @@ if team_name:
 6. 긍정적인 피드백과 개선 제안
 """ },
                         {"role": "user", "content": meeting_text}
-                    ]
-                )
-    result_text = response.choices[0].message.content
-    st.subheader("📋 분석 결과")
-    st.write(result_text)
+                    ] 
+                ) 
+            result_text = response.choices[0].message.content
+            st.subheader("📋 분석 결과") 
+            st.write(result_text) 
             
 # ✅ 분석 결과 정리
     parsed_result = extract_structured_feedback(result_text)
