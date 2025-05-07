@@ -108,6 +108,8 @@ team_codes = {"A팀": "2025", "B팀": "2024"}
 folder_ids = {"A팀": "1-9vL1B5O2LoS1uyBzPK3Y6kIfOSKG-Fo", "B팀": "1BFqy-38ZOFEvxvqPBwRo5-SOaVSoK-oL"}
 team_name = next((team for team, code in team_codes.items() if code_input == code), None)
 
+openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
 if team_name:
     st.success(f"🎉 인증 완료: {team_name}")
     folder_id = folder_ids[team_name]
@@ -167,23 +169,27 @@ if team_name:
                 st.subheader("📋 분석 결과")
                 st.write(result_text)
 
-                parsed = extract_structured_feedback(result_text)
-                try:
-                    sh = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY")
-                    worksheet = sh.sheet1
-                    worksheet.append_row([
-                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        team_name,
-                        selected_file,
-                        parsed["역할 정리"],
-                        parsed["누락"],
-                        parsed["참여도"],
-                        parsed["현재 단계"],
-                        parsed["개선 제안"]
-                    ])
-                    st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
-                except Exception as e:
-                    st.error(f"❌ Sheets 저장 실패: {e}")
+if 'result_text' in locals():
+    parsed = extract_structured_feedback(result_text)
+    if parsed:
+        try:
+            worksheet.append_row([
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                team_name,
+                selected_file,
+                parsed.get("역할 정리", ""),
+                parsed.get("누락", ""),
+                parsed.get("참여도", ""),
+                parsed.get("현재 단계", ""),
+                parsed.get("개선 제안", "")
+            ])
+            st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
+        except Exception as e:
+            st.error(f"❌ Sheets 저장 실패: {e}")
+    else:
+        st.error("❌ 분석 결과에서 내용을 추출할 수 없습니다.")
+else:
+    st.error("❌ GPT 분석 결과가 없습니다.")
 
     if st.button("📊 대시보드 보기"):
         display_dashboard(gc, team_name)
