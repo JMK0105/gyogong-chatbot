@@ -168,14 +168,6 @@ if team_name:
                 result_text = response.choices[0].message.content
                 st.subheader("📋 분석 결과")
                 st.write(result_text)
-
-if st.button("분석 시작"):
-    doc = docs_service.documents().get(documentId=file_dict[selected_file]).execute()
-    elements = doc.get("body", {}).get("content", [])
-    meeting_text = ''.join(
-        elem['textRun']['content']
-        for v in elements if 'paragraph' in v
-        for elem in v['paragraph'].get('elements', []) if 'textRun' in elem
     )
 
     history_df = load_team_history(gc, team_name)
