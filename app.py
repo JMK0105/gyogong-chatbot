@@ -110,7 +110,7 @@ if team_name:
     # ✅ Google Sheets에 저장
     try:
         gc = gspread.authorize(creds)
-        sh = gc.open_by_key(1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY)
+        sh = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY")
         worksheet = sh.sheet1  # 첫 시트 사용
 
         worksheet.append_row([
