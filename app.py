@@ -58,6 +58,11 @@ def load_team_history(gc, team_name):
     worksheet = sh.sheet1
     data = worksheet.get_all_records()
     df = pd.DataFrame(data)
+    df.columns = df.columns.str.strip()  # 컬럼명 공백 제거
+    st.write("✅ 시트 컬럼명:", df.columns.tolist())  # 디버그용 출력
+    if '시간' not in df.columns:
+        st.warning("⚠️ 구글시트에 '시간' 컬럼이 존재하지 않습니다. 데이터 형식을 확인해주세요.")
+        return pd.DataFrame()
     df['시간'] = pd.to_datetime(df['시간'])
     team_df = df[df['팀명'] == team_name].sort_values(by='시간')
     return team_df
