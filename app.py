@@ -169,30 +169,31 @@ if team_name:
                 st.subheader("📋 분석 결과")
                 st.write(result_text)
 
-if 'result_text' in locals():
-    parsed = extract_structured_feedback(result_text)
-    if parsed:
-        try:
-            worksheet.append_row([
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                team_name,
-                selected_file,
-                parsed.get("역할 정리", ""),
-                parsed.get("누락", ""),
-                parsed.get("참여도", ""),
-                parsed.get("현재 단계", ""),
-                parsed.get("개선 제안", "")
-            ])
-            st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
-        except Exception as e:
-            st.error(f"❌ Sheets 저장 실패: {e}")
-    else:
-        st.error("❌ 분석 결과에서 내용을 추출할 수 없습니다.")
-else:
-    st.error("❌ GPT 분석 결과가 없습니다.")
+          if 'result_text' in locals():
+              parsed = extract_structured_feedback(result_text)
+              if parsed:
+                try:
+                   worksheet.append_row([
+                       datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                       team_name,
+                       selected_file,
+                       parsed.get("역할 정리", ""),
+                       parsed.get("누락", ""),
+                       parsed.get("참여도", ""),
+                       parsed.get("현재 단계", ""),
+                       parsed.get("개선 제안", "")
+                   ])
+                   st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
+           except Exception as e:
+               st.error(f"❌ Sheets 저장 실패: {e}")
+       else:
+           st.error("❌ 분석 결과에서 내용을 추출할 수 없습니다.")
+   else:
+       st.error("❌ GPT 분석 결과가 없습니다.")
 
     if st.button("📊 대시보드 보기"):
         display_dashboard(gc, team_name)
+    
 else:
     if code_input:
         st.error("❌ 팀 코드가 올바르지 않습니다.")
