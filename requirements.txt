@@ -10,3 +10,4 @@ jason
 pandas
 matplotlib
 seaborn
+altair
