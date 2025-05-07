@@ -113,3 +113,76 @@ def display_dashboard(gc, team_name):
         for _, row in df.iterrows():
             st.markdown(f"**\U0001F4C5 {row['시간'].strftime('%Y-%m-%d %H:%M')} - {row.get('회의록 제목', row.get('회의록 회차 선택', ''))}**")
             st.markdown(f"> {row.get('개선 제안', '')}")
+
+# ✅ 회의록 불러오기 및 GPT 분석
+if st.session_state.authenticated:
+    team_name = st.session_state.team_name
+    folder_id = folder_ids[team_name]
+
+    creds_info = json.loads(st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"])
+    SCOPES = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive.readonly',
+        'https://www.googleapis.com/auth/documents.readonly'
+    ]
+    creds = service_account.Credentials.from_service_account_info(creds_info, scopes=SCOPES)
+    gc = gspread.authorize(creds)
+    drive_service = build('drive', 'v3', credentials=creds)
+    docs_service = build('docs', 'v1', credentials=creds)
+
+    results = drive_service.files().list(
+        q=f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.document'",
+        pageSize=10,
+        fields="files(id, name, createdTime)"
+    ).execute()
+    files = results.get('files', [])
+
+    if files:
+        file_dict = {f["name"]: f["id"] for f in sorted(files, key=lambda x: x['createdTime'])}
+        selected_file = st.selectbox("📝 회의록 회차 선택", list(file_dict.keys()))
+        st.session_state.selected_file = selected_file
+
+        if st.button("🔍 회의록 분석 시작"):
+            doc = docs_service.documents().get(documentId=file_dict[selected_file]).execute()
+            elements = doc.get("body", {}).get("content", [])
+            meeting_text = ''.join(
+                elem['textRun']['content']
+                for v in elements if 'paragraph' in v
+                for elem in v['paragraph'].get('elements', []) if 'textRun' in elem
+            )
+            st.session_state.meeting_text = meeting_text
+
+            history_df = load_team_history(gc, team_name)
+            context_summary = build_context_summary(history_df)
+
+            with st.spinner("GPT가 회의록을 분석 중입니다..."):
+                response = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"]).chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": f"""...시스템 프롬프트 생략..."""},
+                        {"role": "user", "content": meeting_text}
+                    ]
+                )
+                result_text = response.choices[0].message.content
+                st.session_state.result_text = result_text
+                st.success("✅ GPT 분석 완료!")
+                st.write(result_text)
+
+                parsed = extract_structured_feedback(result_text)
+                if parsed:
+                    if st.button("📌 분석 결과 저장"):
+                        try:
+                            worksheet = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY").sheet1
+                            worksheet.append_row([
+                                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                team_name,
+                                selected_file,
+                                parsed.get("잘한 점", ""),
+                                parsed.get("개선점", ""),
+                                parsed.get("다음 회의 추천", "")
+                            ])
+                            st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
+                        except Exception as e:
+                            st.error(f"❌ 저장 실패: {e}")
+    else:
+        st.warning("❗ 폴더에 회의록이 없습니다.")
