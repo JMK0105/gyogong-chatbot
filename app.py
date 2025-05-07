@@ -8,6 +8,27 @@ from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
+# ✅ 분석 결과 정리 함수 추가
+def extract_structured_feedback(text):
+    sections = {
+        "역할 정리": "",
+        "누락": "",
+        "참여도": "",
+        "현재 단계": "",
+        "개선 제안": ""
+    }
+    for key in sections.keys():
+        if key in text:
+            try:
+                after = text.split(key)[1]
+                for next_key in sections.keys():
+                    if next_key != key and next_key in after:
+                        after = after.split(next_key)[0]
+                sections[key] = after.strip()
+            except:
+                sections[key] = ""
+    return sections
+
 # ✅ 0. 환경 설정
 openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
@@ -102,9 +123,9 @@ if team_name:
                         {"role": "user", "content": meeting_text}
                     ] 
                 ) 
-            result_text = response.choices[0].message.content
-            st.subheader("📋 분석 결과") 
-            st.write(result_text) 
+                result_text = response.choices[0].message.content
+                st.subheader("📋 분석 결과") 
+                st.write(result_text) 
             
 # ✅ 분석 결과 정리
     parsed_result = extract_structured_feedback(result_text)
