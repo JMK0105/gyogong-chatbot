@@ -9,6 +9,8 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from fpdf import FPDF
 import openai
+from dashboard import display_dashboard as inner_dashboard
+
 
 # ✅ Streamlit 기본 설정
 st.set_page_config(page_title="교공이", layout="centered")
