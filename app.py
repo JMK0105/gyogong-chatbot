@@ -3,8 +3,6 @@ from datetime import datetime
 import json
 import streamlit as st
 import openai
-import os
-from dotenv import load_dotenv
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
@@ -85,7 +83,6 @@ if team_name:
     if not files:
         st.warning("이 팀 폴더에 회의록이 없습니다.")
     else:
-        # 회차 선택
         file_dict = {f["name"]: f["id"] for f in sorted(files, key=lambda x: x['createdTime'])}
         selected_file = st.selectbox("📝 회의록 회차 선택", list(file_dict.keys()))
 
@@ -126,29 +123,29 @@ if team_name:
                 result_text = response.choices[0].message.content
                 st.subheader("📋 분석 결과") 
                 st.write(result_text) 
-            
-# ✅ 분석 결과 정리
-    parsed_result = extract_structured_feedback(result_text)
 
-    # ✅ Google Sheets에 저장
-    try:
-        gc = gspread.authorize(creds)
-        sh = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY")
-        worksheet = sh.sheet1  # 첫 시트 사용
+                # ✅ 분석 결과 정리
+                parsed_result = extract_structured_feedback(result_text)
 
-        worksheet.append_row([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            team_name,
-            selected_file,
-            parsed_result["역할 정리"],
-            parsed_result["누락/미정"],
-            parsed_result["참여도"],
-            parsed_result["현재 단계"],
-            parsed_result["개선 제안"]
-        ])
-        st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
-    except Exception as e:
-        st.error(f"❌ Sheets 저장 실패: {e}")
+                # ✅ Google Sheets에 저장
+                try:
+                    gc = gspread.authorize(creds)
+                    sh = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY")
+                    worksheet = sh.sheet1  # 첫 시트 사용
+
+                    worksheet.append_row([
+                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        team_name,
+                        selected_file,
+                        parsed_result["역할 정리"],
+                        parsed_result["누락"],
+                        parsed_result["참여도"],
+                        parsed_result["현재 단계"],
+                        parsed_result["개선 제안"]
+                    ])
+                    st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
+                except Exception as e:
+                    st.error(f"❌ Sheets 저장 실패: {e}")
 
 else:
     if code_input != "":
