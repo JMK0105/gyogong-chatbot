@@ -169,30 +169,62 @@ if team_name:
                 st.subheader("📋 분석 결과")
                 st.write(result_text)
 
-          if 'result_text' in locals():
-              parsed = extract_structured_feedback(result_text)
-              if parsed:
-                try:
-                   worksheet.append_row([
-                       datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                       team_name,
-                       selected_file,
-                       parsed.get("역할 정리", ""),
-                       parsed.get("누락", ""),
-                       parsed.get("참여도", ""),
-                       parsed.get("현재 단계", ""),
-                       parsed.get("개선 제안", "")
-                   ])
-                   st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
-           except Exception as e:
-               st.error(f"❌ Sheets 저장 실패: {e}")
-       else:
-           st.error("❌ 분석 결과에서 내용을 추출할 수 없습니다.")
-   else:
-       st.error("❌ GPT 분석 결과가 없습니다.")
+if st.button("분석 시작"):
+    doc = docs_service.documents().get(documentId=file_dict[selected_file]).execute()
+    elements = doc.get("body", {}).get("content", [])
+    meeting_text = ''.join(
+        elem['textRun']['content']
+        for v in elements if 'paragraph' in v
+        for elem in v['paragraph'].get('elements', []) if 'textRun' in elem
+    )
 
-    if st.button("📊 대시보드 보기"):
-        display_dashboard(gc, team_name)
+    history_df = load_team_history(gc, team_name)
+    context_summary = build_context_summary(history_df)
+
+    with st.spinner("GPT가 회의록을 분석 중입니다..."):
+        response = openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": f"""
+당신은 팀 프로젝트 회의 내용을 누적적으로 분석하는 교육용 챗봇입니다.
+다음은 이 팀의 과거 회의 내용 요약입니다. 이 맥락을 바탕으로 최신 회의 내용을 분석하고 다음을 제시하세요.
+
+[과거 회의 요약]
+{context_summary}
+
+[이번 회의 내용]"""},
+                {"role": "user", "content": meeting_text}
+            ]
+        )
+        result_text = response.choices[0].message.content
+        st.subheader("📋 분석 결과")
+        st.write(result_text)
+
+    if 'result_text' in locals():
+        parsed = extract_structured_feedback(result_text)
+        if parsed:
+            try:
+                worksheet = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY").sheet1
+                worksheet.append_row([
+                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    team_name,
+                    selected_file,
+                    parsed.get("역할 정리", ""),
+                    parsed.get("누락", ""),
+                    parsed.get("참여도", ""),
+                    parsed.get("현재 단계", ""),
+                    parsed.get("개선 제안", "")
+                ])
+                st.success("✅ 분석 결과가 스프레드시트에 저장되었습니다.")
+            except Exception as e:
+                st.error(f"❌ Sheets 저장 실패: {e}")
+        else:
+            st.error("❌ 분석 결과에서 내용을 추출할 수 없습니다.")
+    else:
+        st.error("❌ GPT 분석 결과가 없습니다.")
+
+if st.button("📊 대시보드 보기"):
+    display_dashboard(gc, team_name)
     
 else:
     if code_input:
