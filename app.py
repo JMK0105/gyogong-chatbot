@@ -8,6 +8,8 @@ from googleapiclient.discovery import build
 import openai
 import difflib
 from fpdf import FPDF
+import time
+
 
 # ✅ 시스템 프롬프트
 SYSTEM_PROMPT = """
