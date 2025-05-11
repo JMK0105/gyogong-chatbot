@@ -180,45 +180,60 @@ if st.session_state.authenticated:
         selected_file = st.selectbox("📝 회의록 회차 선택", list(file_dict.keys()))
         st.session_state.selected_file = selected_file
 
-        if st.button("🔍 회의록 분석 시작"):
-            doc = docs_service.documents().get(documentId=file_dict[selected_file]).execute()
-            elements = doc.get("body", {}).get("content", [])
-            meeting_text = ''.join(
-                elem['textRun']['content']
-                for v in elements if 'paragraph' in v
-                for elem in v['paragraph'].get('elements', []) if 'textRun' in elem
-            )
-            st.session_state.meeting_text = meeting_text
+# 생략된 초기 설정 및 인증 코드 동일하게 유지...
 
-            team_df = load_team_history(creds, team_name)
-            context_summary = "\n".join([
-                f"[{row['시간']}] {row.get('회의록 제목', '')}" for _, row in team_df.iterrows()
-            ])
+        if st.button("🔍 회의록 분석 시작", disabled=st.session_state.get("button_disabled", False)):
+            st.session_state.button_disabled = True  # 버튼 중복 클릭 방지
+            time.sleep(2)  # 요청 간 시간 간격 두기
 
-            if team_df.shape[0] > 0:
-                last_text = str(team_df.iloc[-1].get("개선 제안", "")) + str(team_df.iloc[-1].get("진행 요약", ""))
-                similarity = difflib.SequenceMatcher(None, meeting_text.strip(), last_text.strip()).ratio()
-                if similarity >= 0.9:
-                    st.info("⚠️ 이전 회의와 매우 유사합니다. 동일 회의일 수 있습니다.")
-
-            with st.spinner("GPT가 회의록을 분석 중입니다..."):
-                response = openai_client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": f"[과거 회의 요약]\n{context_summary}\n\n[이번 회의 내용]\n{meeting_text}"}
-                    ]
+            try:
+                doc = docs_service.documents().get(documentId=file_dict[selected_file]).execute()
+                elements = doc.get("body", {}).get("content", [])
+                meeting_text = ''.join(
+                    elem['textRun']['content']
+                    for v in elements if 'paragraph' in v
+                    for elem in v['paragraph'].get('elements', []) if 'textRun' in elem
                 )
-                result_text = response.choices[0].message.content
-                st.session_state.result_text = result_text
-                st.success("✅ 분석 완료!")
-               
-            parsed = extract_structured_feedback(result_text)
-            if parsed:
-                if save_to_sheet(gc, team_name, selected_file, parsed):
-                    st.success("📌 구글시트에 저장되었습니다.")
-                display_summary_feedback(parsed)
+                st.session_state.meeting_text = meeting_text
 
+                team_df = load_team_history(creds, team_name)
+                context_summary = "\n".join([
+                    f"[{row['시간']}] {row.get('회의록 제목', '')}" for _, row in team_df.iterrows()
+                ])
+
+                if team_df.shape[0] > 0:
+                    last_text = str(team_df.iloc[-1].get("개선 제안", "")) + str(team_df.iloc[-1].get("진행 요약", ""))
+                    similarity = difflib.SequenceMatcher(None, meeting_text.strip(), last_text.strip()).ratio()
+                    if similarity >= 0.9:
+                        st.info("⚠️ 이전 회의와 매우 유사합니다. 동일 회의일 수 있습니다.")
+
+                with st.spinner("GPT가 회의록을 분석 중입니다..."):
+                    try:
+                        response = openai_client.chat.completions.create(
+                            model="gpt-4",
+                            messages=[
+                                {"role": "system", "content": SYSTEM_PROMPT},
+                                {"role": "user", "content": f"[과거 회의 요약]\n{context_summary}\n\n[이번 회의 내용]\n{meeting_text}"}
+                            ]
+                        )
+                        result_text = response.choices[0].message.content
+                        st.session_state.result_text = result_text
+                        st.success("✅ 분석 완료!")
+
+                        parsed = extract_structured_feedback(result_text)
+                        if parsed:
+                            if save_to_sheet(gc, team_name, selected_file, parsed):
+                                st.success("📌 구글시트에 저장되었습니다.")
+                            display_summary_feedback(parsed)
+
+                    except openai.RateLimitError:
+                        st.warning("⏱️ 요청이 너무 빠릅니다. 5초 후 다시 시도해주세요.")
+                    except Exception as e:
+                        st.error(f"❌ 오류 발생: {str(e)}")
+
+            finally:
+                st.session_state.button_disabled = False  # 버튼 다시 활성화
+               
         if st.session_state.result_text:
             if st.button("📄 분석 결과 PDF로 저장"):
                 filename = f"{selected_file}_분석결과.pdf"
