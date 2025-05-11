@@ -65,20 +65,6 @@ SYSTEM_PROMPT = """
 ...
 """
 
-# 나머지 코드는 그대로 유지됩니다.
-# 예외 처리 추가 예시:
-try:
-    response = openai_client.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": your_input}
-        ]
-    )
-except openai.RateLimitError:
-    st.error("🚫 GPT 호출이 너무 많아 일시적으로 제한되었습니다. 잠시 후 다시 시도해주세요.")
-    st.stop()
-
 
 st.set_page_config(page_title="교공이", layout="centered")
 st.title("🤖 교공이 챗봇")
@@ -227,6 +213,10 @@ if st.session_state.authenticated:
                 st.session_state.result_text = result_text
                 st.success("✅ 분석 완료!")
 
+            except openai.RateLimitError:
+                st.error("🚫 GPT 호출이 너무 많아 일시적으로 제한되었습니다. 잠시 후 다시 시도해주세요.")
+                st.stop()
+               
             parsed = extract_structured_feedback(result_text)
             if parsed:
                 if save_to_sheet(gc, team_name, selected_file, parsed):
