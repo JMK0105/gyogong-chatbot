@@ -2,15 +2,11 @@ from datetime import datetime
 import json
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 import gspread
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from fpdf import FPDF
 import openai
-from dashboard import display_dashboard as inner_dashboard
-
 
 # ✅ Streamlit 기본 설정
 st.set_page_config(page_title="교공이", layout="centered")
@@ -55,12 +51,17 @@ def load_team_history(creds, team_name):
 def build_context_summary(team_df):
     if team_df.empty:
         return "※ 과거 회의 요약이 없습니다. 이번 회의를 잘 시작해보세요!"
-    summary = ""
-    for _, row in team_df.iterrows():
-        summary += f"[{row['시간']}] {row.get('회의록 제목', '제목 없음')}\n"
-        summary += f"- 잘한 점: {row.get('잘한 점', '')}\n"
-        summary += f"- 개선점: {row.get('개선점', '')}\n"
-        summary += f"- 다음 회의 추천: {row.get('다음회의 추천', '')}\n\n"
+
+    # 최근 회의 1건만 추출
+    latest_row = team_df.iloc[-1]  # 가장 마지막 회의
+    summary = f"[{latest_row['시간']}] {latest_row.get('회의록 제목', '제목 없음')}
+"
+    summary += f"- 잘한 점: {latest_row.get('잘한 점', '')}
+"
+    summary += f"- 개선점: {latest_row.get('개선점', '')}
+"
+    summary += f"- 다음 회의 추천: {latest_row.get('다음회의 추천', '')}
+"
     return summary
 
 # ✅ 분석 결과 PDF 저장
@@ -89,18 +90,6 @@ def save_to_sheet(gc, team_name, title, parsed):
     except Exception as e:
         st.error(f"❌ 저장 실패: {e}")
         return False
-
-# ✅ 전체 대시보드 표시 함수
-def display_dashboard(creds, team_name):
-    from dashboard import display_dashboard as inner_dashboard
-    inner_dashboard(creds, team_name)
-
-# ✅ 회의록 단일 분석 대시보드
-def display_single_dashboard(parsed_result):
-    st.subheader("📌 이번 회의 요약 대시보드")
-    st.markdown(f"**👍 잘한 점**\n\n{parsed_result.get('잘한 점', '-')}")
-    st.markdown(f"**⚠️ 개선점**\n\n{parsed_result.get('개선점', '-')}")
-    st.markdown(f"**✨ 다음 회의 추천 포인트**\n\n{parsed_result.get('다음 회의 추천', '-')}")
 
 # ✅ 인증 및 분석 로직 실행
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
@@ -158,14 +147,38 @@ if st.session_state.authenticated:
                     model="gpt-4",
                     messages=[
                         {"role": "system", "content": f"""
-당신은 교육공학 수업의 기말 프로젝트를 수행 중인 예비 교사 팀의 회의 내용을 분석하는 GPT입니다.
-이 팀은 중등 교사 대상 원격 직무연수 콘텐츠인 「에듀테크 활용 PBL 수업 실천법」을 설계하고 있습니다.
+당신은 교육공학 기반의 협력학습을 지원하는 지능형 피드백 챗봇입니다.
+이 프로젝트는 교육공학 수업의 기말 프로젝트로, 중등 교사 대상 원격 직무연수 콘텐츠인 「에듀테크 활용 PBL 수업 실천법」을 설계하는 것입니다.
 학생들은 실제 교육 현장에서 적용 가능한 수업 사례가 포함된 강의 콘텐츠를 개발해야 합니다.
 
-회의록을 읽고 다음과 같은 분석을 진행하세요:
-1. 👍 잘한 점
-2. ⚠️ 주요 개선점
-3. ✨ 다음 회의 추천 포인트
+아래는 이 팀의 누적 회의 내용 요약과 이번 회의 내용입니다.
+이를 바탕으로 다음 5가지 영역에 따라 교육적 피드백을 생성하세요.
+
+1. [참여 인식 유도]
+2. [자기조절 촉진]
+3. [메타인지 강화]
+4. [정서적 지지]
+5. [개선 중심 제안]
+
+추가로 다음도 포함하세요:
+6. [진행 상황 요약] 이전 회의 대비 이번 회의에서 진전된 점을 간결히 정리하세요.
+7. [다음 회의 제안] 다음 회의에서 논의할 우선순위 항목을 제시하세요.
+
+---
+[과거 회의 요약]  
+{context_summary}
+
+[이번 회의 내용]  
+{meeting_text}
+
+[피드백 출력 형식 예시]  
+- 역할 정리:  
+- 자기조절 분석 및 제안:  
+- 메타인지 피드백:  
+- 정서적 피드백:  
+- 개선 제안:  
+- 진행 상황 요약:  
+- 다음 회의 제안:
 """},
                         {"role": "user", "content": f"[과거 회의 요약]\n{context_summary}\n\n[이번 회의 내용]\n{meeting_text}"}
                     ]
@@ -188,12 +201,3 @@ if st.session_state.authenticated:
                 export_pdf(st.session_state.result_text, filename)
                 with open(filename, "rb") as f:
                     st.download_button("⬇️ PDF 다운로드", f, file_name=filename)
-
-            if st.button("📈 이번 회의 대시보드 보기"):
-                parsed = extract_structured_feedback(st.session_state.result_text)
-                display_single_dashboard(parsed)
-
-    st.markdown("---")
-    if st.session_state.authenticated:
-        if st.button("📊 전체 진행 그래프 보기"):
-            display_dashboard(creds, team_name)
