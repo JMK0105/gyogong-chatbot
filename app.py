@@ -212,10 +212,6 @@ if st.session_state.authenticated:
                 result_text = response.choices[0].message.content
                 st.session_state.result_text = result_text
                 st.success("✅ 분석 완료!")
-
-            except openai.RateLimitError:
-                st.error("🚫 GPT 호출이 너무 많아 일시적으로 제한되었습니다. 잠시 후 다시 시도해주세요.")
-                st.stop()
                
             parsed = extract_structured_feedback(result_text)
             if parsed:
