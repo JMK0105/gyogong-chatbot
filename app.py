@@ -23,7 +23,7 @@ for key in ["authenticated", "team_name", "meeting_text", "result_text", "select
         st.session_state[key] = "" if key != "authenticated" else False
 
 # ✅ 팀 코드 인증 및 회의록 선택
-# ✅ 팀 코드 인증 및 회의록 선택
+# ✅ 인증 및 회의록 선택
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
 if code_input:
     team_name = next((team for team, code in team_codes.items() if code_input == code), None)
@@ -31,30 +31,79 @@ if code_input:
         st.session_state.authenticated = True
         st.session_state.team_name = team_name
         st.success(f"🎉 인증 완료: {team_name}")
-        creds_info = json.loads(st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"])
-        scopes = [
-            'https://www.googleapis.com/auth/spreadsheets',
-            'https://www.googleapis.com/auth/drive.readonly',
-            'https://www.googleapis.com/auth/documents.readonly'
-        ]
-        creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
-        drive_service = build('drive', 'v3', credentials=creds)
-        folder_id = folder_ids[team_name]
 
-        results = drive_service.files().list(
-            q=f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.document'",
-            pageSize=10,
-            fields="files(id, name, createdTime)"
-        ).execute()
-        files = results.get('files', [])
+if st.session_state.authenticated:
+    team_name = st.session_state.team_name
+    folder_id = folder_ids[team_name]
 
-        if files:
-            file_dict = {f["name"]: f["id"] for f in sorted(files, key=lambda x: x['createdTime'])}
-            selected_file = st.selectbox("📝 회의록 회차 선택", list(file_dict.keys()))
-            st.session_state.selected_file = selected_file
-    else:
-        st.error("❌ 팀 코드가 올바르지 않습니다.")
+    creds_info = json.loads(st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"])
+    scopes = [
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/drive.readonly',
+        'https://www.googleapis.com/auth/documents.readonly'
+    ]
+    creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+    gc = gspread.authorize(creds)
+    drive_service = build('drive', 'v3', credentials=creds)
+    docs_service = build('docs', 'v1', credentials=creds)
+    openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
+    results = drive_service.files().list(
+        q=f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.document'",
+        pageSize=10,
+        fields="files(id, name, createdTime)"
+    ).execute()
+    files = results.get('files', [])
+
+    if files:
+        file_dict = {f["name"]: f["id"] for f in sorted(files, key=lambda x: x['createdTime'])}
+        selected_file = st.selectbox("📝 회의록 회차 선택", list(file_dict.keys()))
+        st.session_state.selected_file = selected_file
+
+        if st.button("🔍 회의록 분석 시작"):
+            doc = docs_service.documents().get(documentId=file_dict[selected_file]).execute()
+            elements = doc.get("body", {}).get("content", [])
+            meeting_text = ''.join(
+                elem['textRun']['content']
+                for v in elements if 'paragraph' in v
+                for elem in v['paragraph'].get('elements', []) if 'textRun' in elem
+            )
+            st.session_state.meeting_text = meeting_text
+
+            team_df = load_team_history(creds, team_name)
+            context_summary = "\n".join([
+                f"[{row['시간']}] {row.get('회의록 제목', '')}" for _, row in team_df.iterrows()
+            ])
+
+            with st.spinner("GPT가 회의록을 분석 중입니다..."):
+                response = openai_client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": f"[과거 회의 요약]\n{context_summary}\n\n[이번 회의 내용]\n{meeting_text}"}
+                    ]
+                )
+                result_text = response.choices[0].message.content
+                st.session_state.result_text = result_text
+                st.success("✅ 분석 완료!")
+
+            parsed = extract_structured_feedback(result_text)
+            if parsed:
+                if save_to_sheet(gc, team_name, selected_file, parsed):
+                    st.success("📌 구글시트에 저장되었습니다.")
+                display_summary_feedback(parsed)
+
+        if st.session_state.result_text:
+            if st.button("📄 분석 결과 PDF로 저장"):
+                filename = f"{selected_file}_분석결과.pdf"
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", size=12)
+                for line in st.session_state.result_text.split('\n'):
+                    pdf.multi_cell(0, 10, line)
+                pdf.output(filename)
+                with open(filename, "rb") as f:
+                    st.download_button("⬇️ PDF 다운로드", f, file_name=filename)
 
 # ✅ 분석 결과 파싱 함수
 def extract_structured_feedback(text):
@@ -143,37 +192,6 @@ SYSTEM_PROMPT = """
 - (다음 회의의 목표나 과제 제안)
 
 """
-
-# ✅ PDF 저장
-def export_pdf(result_text, file_name):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    for line in result_text.split('\n'):
-        pdf.multi_cell(0, 10, line)
-    pdf.output(file_name)
-    return file_name
-
-# ✅ 시트 저장 (7개 항목 저장)
-def save_to_sheet(gc, team_name, title, parsed):
-    try:
-        worksheet = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY").sheet1
-        worksheet.append_row([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            team_name,
-            title,
-            parsed.get("역할 정리", ""),
-            parsed.get("자기조절", ""),
-            parsed.get("메타인지", ""),
-            parsed.get("정서적 피드백", ""),
-            parsed.get("개선 제안", ""),
-            parsed.get("진행 요약", ""),
-            parsed.get("다음 회의 제안", "")
-        ])
-        return True
-    except Exception as e:
-        st.error(f"❌ 저장 실패: {e}")
-        return False
 
 # ✅ 사용자에게 보여줄 3개 요약 출력
 def display_summary_feedback(parsed):
