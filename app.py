@@ -13,12 +13,48 @@ import difflib
 st.set_page_config(page_title="교공이", layout="centered")
 st.title("🤖 교공이 챗봇")
 
-team_codes = {"A팀": "2025", "B팀": "2024"}
-folder_ids = {"A팀": "1-9vL1B5O2LoS1uyBzPK3Y6kIfOSKG-Fo", "B팀": "1BFqy-38ZOFEvxvqPBwRo5-SOaVSoK-oL"}
+team_codes = {"A팀": "2025", "B팀": "2024", "C팀": "2023", "D팀": "2022", "E팀": "2021", "F팀": "2020"}
+folder_ids = {"A팀": "1-9vL1B5O2LoS1uyBzPK3Y6kIfOSKG-Fo", "B팀": "1BFqy-38ZOFEvxvqPBwRo5-SOaVSoK-oL", 
+              "C팀": "1Ey9nh0vICcDOtQrIQg0XbLEehqNIShYb", "D팀": "1kAb13Qipe-0xw2o6WbLXLi2xrcqjuxoc",
+              "E팀": "1dkSXOSTMDewbt0oGj-FZvWHPCFpTe8vK", "F팀": "17C8Yfjvr8d3kR1XLJtjfcx80xBjaON1p"}
 
 for key in ["authenticated", "team_name", "meeting_text", "result_text", "selected_file"]:
     if key not in st.session_state:
         st.session_state[key] = "" if key != "authenticated" else False
+
+# ✅ 팀 코드 인증 및 회의록 선택
+# ✅ 팀 코드 인증 및 회의록 선택
+code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
+if code_input:
+    team_name = next((team for team, code in team_codes.items() if code_input == code), None)
+    if team_name:
+        st.session_state.authenticated = True
+        st.session_state.team_name = team_name
+        st.success(f"🎉 인증 완료: {team_name}")
+        creds_info = json.loads(st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"])
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive.readonly',
+            'https://www.googleapis.com/auth/documents.readonly'
+        ]
+        creds = service_account.Credentials.from_service_account_info(creds_info, scopes=scopes)
+        drive_service = build('drive', 'v3', credentials=creds)
+        folder_id = folder_ids[team_name]
+
+        results = drive_service.files().list(
+            q=f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.document'",
+            pageSize=10,
+            fields="files(id, name, createdTime)"
+        ).execute()
+        files = results.get('files', [])
+
+        if files:
+            file_dict = {f["name"]: f["id"] for f in sorted(files, key=lambda x: x['createdTime'])}
+            selected_file = st.selectbox("📝 회의록 회차 선택", list(file_dict.keys()))
+            st.session_state.selected_file = selected_file
+    else:
+        st.error("❌ 팀 코드가 올바르지 않습니다.")
+
 
 # ✅ 분석 결과 파싱 함수
 def extract_structured_feedback(text):
@@ -77,6 +113,36 @@ def is_similar_to_previous(meeting_text, team_df, threshold=0.9):
     ])
     seq = difflib.SequenceMatcher(None, meeting_text.strip(), last_text.strip())
     return seq.ratio() >= threshold
+
+# ✅ 시스템 프롬프트
+SYSTEM_PROMPT = """
+당신은 교육공학 기반의 협력학습을 지원하는 지능형 피드백 챗봇입니다.
+이 팀은 중등 교사 대상 원격 직무연수 콘텐츠인 「에듀테크 활용 PBL 수업 실천법」을 설계하고 있으며,
+학생들은 실제 교육 현장에서 적용 가능한 수업 사례가 포함된 강의 콘텐츠를 개발해야 합니다.
+
+아래는 이 팀의 누적 회의 내용 요약과 이번 회의 내용입니다.
+이를 바탕으로 다음 7가지 영역에 따라 회의 내용을 분석하고, **'잘한 점, 개선점, 다음 회의 추천 포인트'의 3개 항목 중심으로 요약하여 응답을 생성하세요.**
+
+7가지 분석 영역:
+1. 역할 정리: 누가 어떤 역할을 맡았는지, 참여 균형 여부
+2. 자기조절: 목표·계획·전략 사용 여부, 부족한 부분
+3. 메타인지: 현재 단계 판단과 필요한 사고 제안
+4. 정서적 피드백: 발언 속 분위기 분석과 응원 메시지
+5. 개선 제안: 발전된 점과 구체적 개선 방향 2~3가지
+6. 진행 요약: 이전 회의와 비교해 달라진 점 정리
+7. 다음 회의 제안: 다음 회의에서 다루면 좋을 핵심 목표 제시
+
+[응답 형식 예시]
+**👍 잘한 점**
+- (1~2개 문장으로 요약)
+
+**⚠️ 개선할 점**
+- (구체적 개선 제안 위주)
+
+**✨ 다음 회의 제안**
+- (다음 회의의 목표나 과제 제안)
+
+"""
 
 # ✅ PDF 저장
 def export_pdf(result_text, file_name):
