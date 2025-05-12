@@ -391,10 +391,9 @@ if st.session_state.authenticated:
                         with st.expander("📈 팀원별 기여도 분석"):
                             try:
                                 contribution_prompt = f"""
-                        다음은 회의 내용입니다. 이 회의에서 등장하는 참여자(이름)들을 기준으로,
-                        각 인물이 회의에서 얼마나 기여했는지를 100% 기준으로 추정하여 JSON 형식으로 출력해 주세요.
-                        비율은 합쳐서 100이 되며, 다음과 같은 형식으로만 응답해 주세요:
-                        {{"이름1": 40, "이름2": 30, "이름3": 30}}
+                        다음은 회의 내용입니다. 이 회의에서 등장하는 참여자(이름)들을 기준으로, 각 인물이 회의에서 얼마나 기여했는지를 100% 기준으로 추정하여 
+                        아무 설명 없이 JSON만 반환하세요. 
+                        형식: {{"이름1": 40, "이름2": 30, "이름3": 30}}
                         
                         [회의 내용]
                         {meeting_text}
@@ -406,9 +405,14 @@ if st.session_state.authenticated:
                                         {"role": "user", "content": contribution_prompt}
                                     ]
                                 )
-                                contribution_raw = contribution_response.choices[0].message.content.strip()
-                                contribution_json = json.loads(contribution_raw)
+                                raw_text = contribution_response.choices[0].message.content.strip()
 
+                                # 🎯 JSON 부분만 추출 (중괄호 블록만)
+                                json_str_match = re.search(r"\{.*\}", raw_text, re.DOTALL)
+                                if not json_str_match:
+                                    raise ValueError("JSON 형식이 응답에 포함되지 않았습니다.")
+                                contribution_json = json.loads(json_str_match.group())
+                                
                                 # 🎯 시각화
                                 st.markdown("#### 🔍 추정된 기여도 분포 (GPT 판단)")
                                 fig, ax = plt.subplots()
