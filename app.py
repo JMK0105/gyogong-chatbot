@@ -176,12 +176,11 @@ def add_dashboard(df):
         col1, col2 = st.columns([1, 1.5])
 
         with col1:
-            if len(df) > 0:
                 if len(df) == 1:
-                    selected_idx = 0
+                    selected_idx = 1
                 else:
                     selected_idx = st.slider("WordCloud 회차 선택", 1, len(df) - 1, 1, key="wordcloud_slider")
-                text = " ".join(clean_korean_text(df.iloc[selected_idx]["분석텍스트"]))
+                text = " ".join(clean_korean_text(df.iloc[selected_idx - 1]["분석텍스트"]))
                 if not text.strip():
                     st.info("⚠️ 해당 회차에는 표시할 키워드가 충분하지 않습니다.")
                 else:
