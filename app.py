@@ -14,6 +14,7 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 
 
+
 # ✅ 시스템 프롬프트
 SYSTEM_PROMPT = """
 당신은 교육공학 기반의 협력학습을 지원하는 지능형 피드백 챗봇입니다.
@@ -359,7 +360,7 @@ if st.session_state.authenticated:
 
                 with st.spinner("GPT가 회의록을 분석 중입니다..."):
                     response = openai_client.chat.completions.create(
-                        model="gpt-3.5-turbo",
+                        model="gpt-4-turbo",
                         messages=[
                             {"role": "system", "content": SYSTEM_PROMPT},
                             {"role": "user", "content": f"[과거 회의 요약]\n{context_summary}\n\n[이번 회의 내용]\n{meeting_text}"}
@@ -422,6 +423,7 @@ if st.session_state.authenticated:
                                 explanation_text = explanation_match[1].strip() if len(explanation_match) > 1 else "해석이 없습니다."
 
                                 # 🎯 시각화
+                                from matplotlib import font_manager
                                 # 한글 폰트 경로 지정 (로컬에 있을 경우 경로 수정 가능)
                                 font_path = "fonts/malgun.ttf"  # 또는 절대 경로
                                 font_prop = font_manager.FontProperties(fname=font_path)
