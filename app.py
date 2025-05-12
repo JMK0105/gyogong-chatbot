@@ -422,11 +422,26 @@ if st.session_state.authenticated:
                                 explanation_text = explanation_match[1].strip() if len(explanation_match) > 1 else "해석이 없습니다."
 
                                 # 🎯 시각화
+                                # 한글 폰트 경로 지정 (로컬에 있을 경우 경로 수정 가능)
+                                font_path = "fonts/malgun.ttf"  # 또는 절대 경로
+                                font_prop = font_manager.FontProperties(fname=font_path)
+
                                 st.markdown("#### 🔍 추정된 기여도 분포 (GPT 판단)")
                                 fig, ax = plt.subplots()
-                                ax.pie(contribution_json.values(), labels=contribution_json.keys(), autopct='%1.1f%%', startangle=90)
+                                wedges, texts, autotexts = ax.pie(contribution_json.values(), 
+                                                                  labels=contribution_json.keys(), autopct='%1.1f%%', startangle=90, textprops={'fontsize': 12})
+
+                                # 폰트 설정 적용
+                                for t in texts + autotexts:
+                                    t.set_fontproperties(font_prop)
+                                    
                                 ax.axis('equal')
                                 st.pyplot(fig)
+                                
+                                # 해석 출력
+                                st.markdown("#### 💬 기여도 해석")
+                                st.info(explanation_text)
+                        
                             
                             except Exception as e:
                                 st.warning(f"⚠️ 기여도 분석 실패: {e}")
