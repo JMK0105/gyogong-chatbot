@@ -269,7 +269,7 @@ def add_dashboard(df):
                     openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
                     topic_response = openai_client.chat.completions.create(
-                        model="gpt-4-turbo",
+                        model="gpt-3.5-turbo",
                         messages=[
                             {"role": "system", "content": "당신은 교육 회의 내용을 요약하는 조력자입니다."},
                             {"role": "user", "content": summary_prompt}
@@ -359,7 +359,7 @@ if st.session_state.authenticated:
 
                 with st.spinner("GPT가 회의록을 분석 중입니다..."):
                     response = openai_client.chat.completions.create(
-                        model="gpt-4-turbo",
+                        model="gpt-3.5-turbo",
                         messages=[
                             {"role": "system", "content": SYSTEM_PROMPT},
                             {"role": "user", "content": f"[과거 회의 요약]\n{context_summary}\n\n[이번 회의 내용]\n{meeting_text}"}
@@ -401,7 +401,7 @@ if st.session_state.authenticated:
                         {meeting_text}
                         """
                                 contribution_response = openai_client.chat.completions.create(
-                                    model="gpt-4-turbo",
+                                    model="gpt-3.5-turbo",
                                     messages=[
                                         {"role": "system", "content": "당신은 팀 회의에서 팀원별 기여도를 분석해주는 전문가입니다."},
                                         {"role": "user", "content": contribution_prompt}
@@ -409,8 +409,6 @@ if st.session_state.authenticated:
                                 )
 
                                 import re
-
-                            
                                 raw_text = contribution_response.choices[0].message.content.strip()
 
                                 # 🎯 JSON 부분만 추출 (중괄호 블록만)
