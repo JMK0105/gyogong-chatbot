@@ -9,6 +9,9 @@ import openai
 import difflib
 from fpdf import FPDF
 import time
+from collections import Counter
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 
 
 # ✅ 시스템 프롬프트
@@ -145,42 +148,25 @@ def display_summary_feedback(parsed):
     st.markdown(f"**⚠️ 개선할 점**\n\n{parsed.get('개선 제안', '')}\n{parsed.get('진행 요약', '')}")
     st.markdown(f"**✨ 다음 회의 제안**\n\n{parsed.get('다음 회의 제안', '')}")
 
-import pandas as pd
-import streamlit as st
-from collections import Counter
-
-# ✅ 회차별 키워드 변화 시각화 (라인 차트)
+# ✅ 키워드 변화 시각화 (라인 차트)
 def keyword_trend_linechart(df):
     st.subheader("📈 회차별 키워드 변화 추이 (라인 차트)")
-
-    # 개선 제안 + 진행 요약에서 키워드 추출
     df["키워드기반"] = df["개선 제안"].fillna("") + " " + df["진행 요약"].fillna("")
     tokenized = df["키워드기반"].apply(lambda x: [w.strip(",.()") for w in x.split() if len(w) > 1])
-
-    # 상위 N개 키워드 도출
     all_words = [word for row in tokenized for word in row]
     top_keywords = [kw for kw, _ in Counter(all_words).most_common(5)]
-
-    # 회차별로 키워드 등장 빈도 계산
-    trend_data = []
-    for row in tokenized:
-        counts = [row.count(kw) for kw in top_keywords]
-        trend_data.append(counts)
-    
+    trend_data = [[row.count(kw) for kw in top_keywords] for row in tokenized]
     trend_df = pd.DataFrame(trend_data, columns=top_keywords)
     trend_df["회차"] = [f"{i+1}회차" for i in range(len(trend_df))]
     trend_df = trend_df.set_index("회차")
-
-    # 라인 차트 출력
     st.line_chart(trend_df)
-      
-team_df = load_team_history(creds, team_name)
 
-      if not team_df.empty:
-    add_dashboard(team_df)
+# ✅ 대시보드 통합
+def add_dashboard(df):
+    st.subheader("📊 팀 회의 분석 대시보드")
+    keyword_trend_linechart(df)
 
-      
-                      
+
 # ✅ 인증 및 회의록 선택
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
 if code_input:
@@ -190,6 +176,7 @@ if code_input:
         st.session_state.team_name = team_name
         st.success(f"🎉 인증 완료: {team_name}")
 
+# ✅ 본문 실행 로직
 if st.session_state.authenticated:
     team_name = st.session_state.team_name
     folder_id = folder_ids[team_name]
@@ -206,6 +193,10 @@ if st.session_state.authenticated:
     docs_service = build('docs', 'v1', credentials=creds)
     openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
+    team_df = load_team_history(creds, team_name)
+    if not team_df.empty:
+        add_dashboard(team_df)
+
     results = drive_service.files().list(
         q=f"'{folder_id}' in parents and mimeType='application/vnd.google-apps.document'",
         pageSize=10,
@@ -218,11 +209,9 @@ if st.session_state.authenticated:
         selected_file = st.selectbox("📝 회의록 회차 선택", list(file_dict.keys()))
         st.session_state.selected_file = selected_file
 
-# 생략된 초기 설정 및 인증 코드 동일하게 유지...
-
         if st.button("🔍 회의록 분석 시작", disabled=st.session_state.get("button_disabled", False)):
-            st.session_state.button_disabled = True  # 버튼 중복 클릭 방지
-            time.sleep(2)  # 요청 간 시간 간격 두기
+            st.session_state.button_disabled = True
+            time.sleep(2)
 
             try:
                 doc = docs_service.documents().get(documentId=file_dict[selected_file]).execute()
@@ -234,7 +223,6 @@ if st.session_state.authenticated:
                 )
                 st.session_state.meeting_text = meeting_text
 
-                team_df = load_team_history(creds, team_name)
                 context_summary = "\n".join([
                     f"[{row['시간']}] {row.get('회의록 제목', '')}" for _, row in team_df.iterrows()
                 ])
@@ -246,32 +234,30 @@ if st.session_state.authenticated:
                         st.info("⚠️ 이전 회의와 매우 유사합니다. 동일 회의일 수 있습니다.")
 
                 with st.spinner("GPT가 회의록을 분석 중입니다..."):
-                    try:
-                        response = openai_client.chat.completions.create(
-                            model="gpt-4",
-                            messages=[
-                                {"role": "system", "content": SYSTEM_PROMPT},
-                                {"role": "user", "content": f"[과거 회의 요약]\n{context_summary}\n\n[이번 회의 내용]\n{meeting_text}"}
-                            ]
-                        )
-                        result_text = response.choices[0].message.content
-                        st.session_state.result_text = result_text
-                        st.success("✅ 분석 완료!")
+                    response = openai_client.chat.completions.create(
+                        model="gpt-4",
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": f"[과거 회의 요약]\n{context_summary}\n\n[이번 회의 내용]\n{meeting_text}"}
+                        ]
+                    )
+                    result_text = response.choices[0].message.content
+                    st.session_state.result_text = result_text
+                    st.success("✅ 분석 완료!")
 
-                        parsed = extract_structured_feedback(result_text)
-                        if parsed:
-                            if save_to_sheet(gc, team_name, selected_file, parsed):
-                                st.success("📌 구글시트에 저장되었습니다.")
-                            display_summary_feedback(parsed)
+                    parsed = extract_structured_feedback(result_text)
+                    if parsed:
+                        if save_to_sheet(gc, team_name, selected_file, parsed):
+                            st.success("📌 구글시트에 저장되었습니다.")
+                        display_summary_feedback(parsed)
 
-                    except openai.RateLimitError:
-                        st.warning("⏱️ 요청이 너무 빠릅니다. 5초 후 다시 시도해주세요.")
-                    except Exception as e:
-                        st.error(f"❌ 오류 발생: {str(e)}")
-
+            except openai.RateLimitError:
+                st.warning("⏱️ 요청이 너무 빠릅니다. 5초 후 다시 시도해주세요.")
+            except Exception as e:
+                st.error(f"❌ 오류 발생: {str(e)}")
             finally:
-                st.session_state.button_disabled = False  # 버튼 다시 활성화
-               
+                st.session_state.button_disabled = False
+
         if st.session_state.result_text:
             if st.button("📄 분석 결과 PDF로 저장"):
                 filename = f"{selected_file}_분석결과.pdf"
@@ -283,6 +269,7 @@ if st.session_state.authenticated:
                 pdf.output(filename)
                 with open(filename, "rb") as f:
                     st.download_button("⬇️ PDF 다운로드", f, file_name=filename)
+
 
 
 
