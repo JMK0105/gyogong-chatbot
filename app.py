@@ -29,17 +29,16 @@ SYSTEM_PROMPT = """
 4. 콘텐츠 구조 및 흐름: 강의의 전체 구성과 흐름이 논리적이고 자연스러운가?
 5. 내용 전달력: 교사가 듣고 쉽게 이해하고 따라할 수 있도록 구성되었는가?
 
-아래는 이 팀의 누적 회의 내용 요약과 이번 회의 내용입니다.
-이를 바탕으로 다음 7가지 영역에 따라 회의 내용을 분석하세요. 각 항목 이름을 그대로 소제목으로 사용하여 구분하세요.
-마지막에 '팀원별 기여도', '잘한 점', '개선할 점', '다음 회의 제안'을 요약 포인트로 제공하세요.
-각 항목은 2~3문장 이내로 간결하게 작성하되, 구체적인 예시를 포함하세요.
+다음 7가지 영역에 따라 회의 내용을 분석하세요. 각 항목 이름을 그대로 소제목으로 사용하여 구분하세요.
+피드백을 제공할 때는 '팀원별 기여도', '잘한 점', '개선할 점', '다음 회의 제안'을 요약 포인트로 제공하세요.
+각 항목은 1~2문장 이내로 간결하게 작성하되, 구체적인 예시를 포함하세요.
 
 7가지 분석 영역:
 1. 역할 정리: 누가 어떤 역할을 맡았는지, 참여 균형 여부, 팀워크를 판단하세요.
 2. 자기조절: 목표 설정, 계획 수립, 일정 조율 등의 자기조절 전략이 사용되었는지 확인하세요.
 3. 메타인지: 현재 프로젝트 단계에 대한 인식 여부와 이에 따른 전략적 사고 또는 필요 제안이 있었는지 확인하세요.
 4. 정서적 피드백: 회의 분위기, 긍정적 상호작용 여부, 격려 발언 등을 분석하고, 간단한 응원 메시지를 제시하세요.
-5. 개선 제안: 현재 논의나 작업의 부족한 점을 2~3가지 구체적으로 제시하세요.
+5. 개선 제안: 현재 논의나 작업의 부족한 점을 1~2가지 구체적으로 제시하세요.
 6. 진행 요약: 이전 회의 대비 진전 사항을 요약하세요.
 7. 다음 회의 제안: 다음 회의에서 다뤄야 할 핵심 목표나 논의 주제를 제시하세요.
 
@@ -58,22 +57,7 @@ SYSTEM_PROMPT = """
 ...
 다음 회의 제안:
 ...
-
---- 요약 ---
-
-🍀팀원별 참여도:
-...
-
-👍 잘한 점:
-...
-
-⚠️ 개선할 점:
-...
-
-✨ 다음 회의 제안:
-...
 """
-
 
 st.set_page_config(page_title="교공이", layout="centered")
 st.title("🤖 교공이 챗봇")
@@ -401,31 +385,44 @@ if st.session_state.authenticated:
                             if save_to_sheet(gc, team_name, selected_file, parsed, meeting_text):
                                 st.success("📌 회의록 내용이 확인되었습니다.")
                         display_summary_feedback(parsed)
+                        display_summary_feedback(parsed)
+
+                        # ✅ GPT 기반 팀원별 기여도 추정 및 시각화
+                        with st.expander("📈 팀원별 기여도 분석"):
+                            try:
+                                contribution_prompt = f"""
+                        다음은 회의 내용입니다. 이 회의에서 등장하는 참여자(이름)들을 기준으로,
+                        각 인물이 회의에서 얼마나 기여했는지를 100% 기준으로 추정하여 JSON 형식으로 출력해 주세요.
+                        비율은 합쳐서 100이 되며, 다음과 같은 형식으로만 응답해 주세요:
+                        {{"이름1": 40, "이름2": 30, "이름3": 30}}
                         
-                        # ✅ GPT 응답 전체 보기 + 요약 접기
-                         result_text = st.session_state.result_text
-                         if '--- 요약 ---' in result_text:
-                             main_part, summary_part = result_text.split('--- 요약 ---', 1)
-                         else:
-                              main_part = result_text
-                              summary_part = ""
-
-                         st.markdown("### 📋 회의록 GPT 분석 결과)
-                         st.markdown(main_part)
-
-                         if summary_part.strip():
-                              with st.expander("📝 요점 보기", expanded=False):
-                                   st.markdown("**--- 요약 ---**\n" + summary_part)
-           
-       
+                        [회의 내용]
+                        {meeting_text}
+                        """
+                                contribution_response = openai_client.chat.completions.create(
+                                    model="gpt-4-turbo",
+                                    messages=[
+                                        {"role": "system", "content": "당신은 팀 회의에서 팀원별 기여도를 분석해주는 전문가입니다."},
+                                        {"role": "user", "content": contribution_prompt}
+                                    ]
+                                )
+                                contribution_json = json.loads(contribution_response.choices[0].message.content)
+                                st.subheader("👥 GPT 기반 팀원별 기여도")
+                                st.pyplot(plt.pie(
+                                    contribution_json.values(),
+                                    labels=contribution_json.keys(),
+                                    autopct='%1.1f%%',
+                                    startangle=140
+                                ))
+                            except Exception as e:
+                                st.warning(f"⚠️ 기여도 분석 실패: {e}")
+            
             except openai.RateLimitError:
                 st.warning("⏱️ 요청이 너무 빠릅니다. 5초 후 다시 시도해주세요.")
             except Exception as e:
                 st.error(f"❌ 오류 발생: {str(e)}")
             finally:
                 st.session_state.button_disabled = False
-
-       
 
         import re
         class UnicodePDF(FPDF):
