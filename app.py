@@ -158,9 +158,6 @@ def add_dashboard(df):
             st.session_state["show_dashboard"] = True
         else:
             return
-    show = st.button("📊 대시보드 확인하기")
-    if not show:
-        return
         
     import altair as alt
     from gensim import corpora
