@@ -159,6 +159,10 @@ def add_dashboard(df):
     from gensim import corpora
     from gensim.models.ldamodel import LdaModel
 
+
+    # ✅ 회의록 제목 기준 중복 제거
+    df = df.drop_duplicates(subset="회의록 제목", keep="last").reset_index(drop=True)
+
     st.header("📊 팀 회의 대시보드")
 
     def clean_korean_text(text):
