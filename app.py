@@ -239,13 +239,13 @@ def add_dashboard(df):
                 topic_keywords.append({"토픽": f"토픽 {i+1}", "키워드": word, "확률": prob})
 
         topic_df = pd.DataFrame(topic_keywords)
-        topic_chart = alt.Chart(topic_df).mark_bar().encode(
-            x=alt.X("키워드:N", sort="-y"),
-            y=alt.Y("확률:Q"),
-            color="토픽:N",
-            tooltip=["토픽", "키워드", "확률"]
-        ).properties(width=700, height=400)
-        st.altair_chart(topic_chart, use_container_width=True)
+        stacked_chart = alt.Chart(topic_df).mark_bar().encode(
+    x=alt.X("토픽:N", title="토픽"),
+    y=alt.Y("확률:Q", stack="normalize", title="비중"),
+    color=alt.Color("키워드:N"),
+    tooltip=["토픽", "키워드", "확률"]
+).properties(width=700, height=400)
+st.altair_chart(stacked_chart, use_container_width=True)
     else:
         st.info("⚠️ 토픽 모델링을 위한 충분한 데이터가 없습니다.")
 
