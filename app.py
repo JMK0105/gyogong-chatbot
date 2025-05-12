@@ -148,6 +148,22 @@ def display_summary_feedback(parsed):
     st.markdown(f"**⚠️ 개선할 점**\n\n{parsed.get('개선 제안', '')}\n{parsed.get('진행 요약', '')}")
     st.markdown(f"**✨ 다음 회의 제안**\n\n{parsed.get('다음 회의 제안', '')}")
 
+import re
+
+# ✅ 한글 텍스트 전처리 함수
+def clean_korean_text(text):
+    # 한글 이외 제거
+    text = re.sub(r"[^가-힣\\s]", "", text)
+    words = text.split()
+
+    # 의미 없는 단어 (불용어) 리스트
+    stopwords = set(["그리고", "그러나", "때문에", "수업", "활용", "예시", "등", "위한", "하는", "있다", "있습니다"])
+
+    # 필터링
+    clean_words = [w for w in words if len(w) > 1 and w not in stopwords]
+    return clean_words
+
+
 def add_dashboard(df):
     import matplotlib.pyplot as plt
     from wordcloud import WordCloud
@@ -176,7 +192,7 @@ def add_dashboard(df):
 
     # ✅ 2. 키워드 변화 추이 (라인차트)
     st.subheader("📈 회차별 키워드 변화 추이 (라인 차트)")
-    tokenized = df["키워드기반"].apply(lambda x: [w.strip(",.()") for w in x.split() if len(w) > 1])
+    tokenized = df["키워드기반"].apply(clean_korean_text)
     all_words = [word for row in tokenized for word in row]
     top_keywords = [kw for kw, _ in Counter(all_words).most_common(5)]
     trend_data = [[row.count(kw) for kw in top_keywords] for row in tokenized]
