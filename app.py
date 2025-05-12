@@ -79,12 +79,13 @@ st.set_page_config(page_title="교공이", layout="centered")
 st.title("🤖 교공이 챗봇")
 
 team_codes = {
-    "A팀": "2025", "B팀": "2024", "C팀": "2023", "D팀": "2022",
+    "팀test": "2025" "A팀": "2026", "B팀": "2024", "C팀": "2023", "D팀": "2022",
     "E팀": "2021", "F팀": "2020"
 }
 
 folder_ids = {
-    "A팀": "1-9vL1B5O2LoS1uyBzPK3Y6kIfOSKG-Fo",
+    "팀test": "1-9vL1B5O2LoS1uyBzPK3Y6kIfOSKG-Fo",
+    "A팀": "1xdm-vXZ-bjch2bQWgHZ_GuQ8VjguCCaD",
     "B팀": "1BFqy-38ZOFEvxvqPBwRo5-SOaVSoK-oL",
     "C팀": "1Ey9nh0vICcDOtQrIQg0XbLEehqNIShYb",
     "D팀": "1kAb13Qipe-0xw2o6WbLXLi2xrcqjuxoc",
