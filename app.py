@@ -151,22 +151,25 @@ def display_summary_feedback(parsed):
 def add_dashboard(df):
     from collections import Counter
     import altair as alt
+    from gensim import corpora
+    from gensim.models.ldamodel import LdaModel
 
     st.header("📊 팀 회의 대시보드")
 
     # ✅ 키워드 기반 텍스트 결합
     df["키워드기반"] = df["개선 제안"].fillna("") + " " + df["진행 요약"].fillna("")
 
-    # ✅ 전처리 함수 정의 (명사 단위 분리 고려)
+    # ✅ 전처리 함수 정의
     def clean_korean_text(text):
         import re
         text = re.sub(r"[^가-힣\s]", "", text)
         words = text.split()
         stopwords = set([
-            "그리고", "그러나", "때문에", "등", "위한", "하는", "있다", "있습니다", "이다", "된다", "같다",
-            "경우", "정도", "부분", "내용", "활동", "했습니다", "합니다"
+            "그리고", "그러나", "때문에", "예시", "등",
+            "위한", "하는", "있다", "있습니다", "이다", "된다", "같다",
+            "경우", "정도", "부분", "내용", "대한", "대해", "이에", "로서",
+            "으로", "것이", "로부터", "에게", "된다면", "합니다", "있습니다", "있어요"
         ])
-        # 2글자 이상 단어 + 불용어 제거
         return [w for w in words if len(w) > 1 and w not in stopwords and len(w) <= 6]
 
     # ✅ 1. 회차별 WordCloud
@@ -199,7 +202,7 @@ def add_dashboard(df):
     top_keywords = [kw for kw, _ in Counter(all_words).most_common(5)]
     trend_data = [[row.count(kw) for kw in top_keywords] for row in tokenized]
     trend_df = pd.DataFrame(trend_data, columns=top_keywords)
-    trend_df["회차"] = [f"{i+1}회차" for i in range(len(trend_df))]
+    trend_df["회차"] = df["회의록 제목"].fillna("").apply(lambda x: x if x.strip() else "무제 회의")
     trend_df_melted = trend_df.melt(id_vars="회차", var_name="키워드", value_name="빈도")
 
     chart = alt.Chart(trend_df_melted).mark_line(point=True).encode(
@@ -210,6 +213,32 @@ def add_dashboard(df):
 
     st.altair_chart(chart, use_container_width=True)
 
+    # ✅ 3. 회차별 토픽 비중 (LDA)
+    st.subheader("🧠 회차별 토픽 비중 (LDA 토픽모델링)")
+    texts = tokenized.tolist()
+    dictionary = corpora.Dictionary(texts)
+    corpus = [dictionary.doc2bow(text) for text in texts]
+    if len(dictionary) > 0 and len(corpus) > 0:
+        lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=3, random_state=42)
+        topic_distributions = [dict(lda_model.get_document_topics(doc)) for doc in corpus]
+        topic_df = pd.DataFrame(topic_distributions).fillna(0)
+        topic_df["회차"] = df["회의록 제목"].fillna("").apply(lambda x: x if x.strip() else "무제 회의")
+        topic_df_melted = topic_df.melt(id_vars="회차", var_name="토픽", value_name="비중")
+
+        chart = alt.Chart(topic_df_melted).mark_line(point=True).encode(
+            x=alt.X("회차:N", title="회차"),
+            y=alt.Y("비중:Q", title="토픽 비중"),
+            color="토픽:N"
+        ).properties(width=700, height=300)
+
+        st.altair_chart(chart, use_container_width=True)
+
+        # ✅ 대표 키워드 출력
+        st.markdown("### 🔑 토픽별 대표 키워드")
+        for i, topic in lda_model.print_topics(num_words=5):
+            st.markdown(f"**토픽 {i+1}**: {topic}")
+    else:
+        st.info("⚠️ 토픽 모델링을 위한 충분한 데이터가 없습니다.")
 
 # ✅ 인증 및 회의록 선택
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
