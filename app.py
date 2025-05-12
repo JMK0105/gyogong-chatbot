@@ -264,7 +264,9 @@ def add_dashboard(df):
             ).properties(width=700, height=400)
 
             st.altair_chart(chart, use_container_width=True)
-            
+    else:
+        st.info("⚠️ 선택된 회차에 대한 LDA 모델링을 위한 충분한 데이터가 없습니다.")
+
 # ✅ GPT 요약 생성 (openai_client가 정의된 이후에만 실행)
 try:
     topic_summaries = []
@@ -295,10 +297,6 @@ try:
     except Exception as e:
         st.warning(f"토픽 요약 생성 실패: {e}")
 
-
-    
-    else:
-        st.info("⚠️ 선택된 회차에 대한 LDA 모델링을 위한 충분한 데이터가 없습니다.")
             
 # ✅ 인증 및 회의록 선택
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
