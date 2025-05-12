@@ -121,7 +121,7 @@ def extract_structured_feedback(text):
     return result
 
 # ✅ 시트 저장
-def save_to_sheet(gc, team_name, title, parsed):
+def save_to_sheet(gc, team_name, title, parsed, full_text=""):
     try:
         worksheet = gc.open_by_key("1LNKXL83dNvsHDOHEkw7avxKRsYWCiIIIYKUPiF1PZGY").sheet1
         worksheet.append_row([
@@ -134,8 +134,9 @@ def save_to_sheet(gc, team_name, title, parsed):
             parsed.get("정서적 피드백", ""),
             parsed.get("개선 제안", ""),
             parsed.get("진행 요약", ""),
-            parsed.get("다음 회의 제안", "")
-        ])
+            parsed.get("다음 회의 제안", ""),
+            full_text  # ✅ 전체 회의록 추가
+            ])
         return True
     except Exception as e:
         st.error(f"❌ 저장 실패: {e}")
@@ -149,15 +150,11 @@ def display_summary_feedback(parsed):
     st.markdown(f"**✨ 다음 회의 제안**\n\n{parsed.get('다음 회의 제안', '')}")
 
 def add_dashboard(df):
-    from collections import Counter
     import altair as alt
     from gensim import corpora
     from gensim.models.ldamodel import LdaModel
 
     st.header("📊 팀 회의 대시보드")
-
-    # ✅ 키워드 기반 텍스트 결합
-    df["키워드기반"] = df["개선 제안"].fillna("") + " " + df["진행 요약"].fillna("")
 
     # ✅ 전처리 함수 정의
     def clean_korean_text(text):
@@ -165,18 +162,20 @@ def add_dashboard(df):
         text = re.sub(r"[^가-힣\s]", "", text)
         words = text.split()
         stopwords = set([
-            "그리고", "그러나", "때문에", "예시", "등",
-            "위한", "하는", "있다", "있습니다", "이다", "된다", "같다",
-            "경우", "정도", "부분", "내용", "대한", "대해", "이에", "로서",
+            "그리고", "그러나", "때문에", "등", "위한", "하는", "있다", "있습니다", "이다", "된다", "같다",
+            "경우", "정도", "부분", "내용", "방법", "활동", "결과", "제시", "대한", "대해", "이에", "로서",
             "으로", "것이", "로부터", "에게", "된다면", "합니다", "있습니다", "있어요"
         ])
         return [w for w in words if len(w) > 1 and w not in stopwords and len(w) <= 6]
+
+    # ✅ 회의록 전체 텍스트 기준 분석 텍스트 열 생성
+    df["분석텍스트"] = df["전체 회의록"].fillna("")
 
     # ✅ 1. 회차별 WordCloud
     st.subheader("🔍 회차별 핵심 키워드 WordCloud")
     if len(df) > 0:
         selected_idx = st.slider("WordCloud에 표시할 회차 선택", 0, len(df) - 1, 0)
-        text = " ".join(clean_korean_text(df.iloc[selected_idx]["키워드기반"]))
+        text = " ".join(clean_korean_text(df.iloc[selected_idx]["분석텍스트"]))
         if not text.strip():
             st.info("⚠️ 해당 회차에는 표시할 키워드가 충분하지 않습니다.")
         else:
@@ -197,7 +196,7 @@ def add_dashboard(df):
 
     # ✅ 2. 키워드 변화 추이 (Altair 라인차트)
     st.subheader("📈 회차별 키워드 변화 추이 (라인 차트)")
-    tokenized = df["키워드기반"].apply(clean_korean_text)
+    tokenized = df["분석텍스트"].apply(clean_korean_text)
     all_words = [word for row in tokenized for word in row if len(word) <= 6]
     top_keywords = [kw for kw, _ in Counter(all_words).most_common(5)]
     trend_data = [[row.count(kw) for kw in top_keywords] for row in tokenized]
@@ -239,6 +238,7 @@ def add_dashboard(df):
             st.markdown(f"**토픽 {i+1}**: {topic}")
     else:
         st.info("⚠️ 토픽 모델링을 위한 충분한 데이터가 없습니다.")
+
 
 # ✅ 인증 및 회의록 선택
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
@@ -320,7 +320,7 @@ if st.session_state.authenticated:
 
                     parsed = extract_structured_feedback(result_text)
                     if parsed:
-                        if save_to_sheet(gc, team_name, selected_file, parsed):
+                        if save_to_sheet(gc, team_name, selected_file, parsed, meeting_text):
                             st.success("📌 구글시트에 저장되었습니다.")
                         display_summary_feedback(parsed)
 
