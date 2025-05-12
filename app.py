@@ -79,7 +79,7 @@ st.set_page_config(page_title="교공이", layout="centered")
 st.title("🤖 교공이 챗봇")
 
 team_codes = {
-    "팀test": "2025" "A팀": "2026", "B팀": "2024", "C팀": "2023", "D팀": "2022",
+    "팀test": "2025", "A팀": "2026", "B팀": "2024", "C팀": "2023", "D팀": "2022",
     "E팀": "2021", "F팀": "2020"
 }
 
@@ -354,10 +354,13 @@ if st.session_state.authenticated:
                 )
                 st.session_state.meeting_text = meeting_text
 
-                context_summary = "\n".join([
-                    f"[{row['시간']}] {row.get('회의록 제목', '')}" for _, row in team_df.iterrows()
-                ])
 
+                if "context_summary" not in st.session_state:
+                    st.session_state.context_summary = "\n".join([
+                        f"[{row['시간']}] {row.get('회의록 제목', '')}" for _, row in team_df.iterrows()
+                    ])
+                context_summary = st.session_state.context_summary
+                
                 if team_df.shape[0] > 0:
                     last_text = str(team_df.iloc[-1].get("개선 제안", "")) + str(team_df.iloc[-1].get("진행 요약", ""))
                     similarity = difflib.SequenceMatcher(None, meeting_text.strip(), last_text.strip()).ratio()
