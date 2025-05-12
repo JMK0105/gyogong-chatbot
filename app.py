@@ -151,13 +151,13 @@ def display_summary_feedback(parsed):
 
 def add_dashboard(df):
     if "show_dashboard" not in st.session_state:
-        st.session_state["show_dashboard"] = False
+    st.session_state["show_dashboard"] = False
 
     if not st.session_state["show_dashboard"]:
-        if st.button("📊 대시보드 확인하기"):
-            st.session_state["show_dashboard"] = True
-        else:
-            return
+    if st.button("📊 대시보드 확인하기", key=f"dashboard_button_{df['회의록 제목'].iloc[-1]}"):
+        st.session_state["show_dashboard"] = True
+    else:
+        return
         
     import altair as alt
     from gensim import corpora
@@ -223,26 +223,6 @@ def add_dashboard(df):
     ).properties(width=700, height=300)
 
     st.altair_chart(chart, use_container_width=True)
-
-    # ✅ 3. 회차별 토픽 비중 (LDA)
-    st.subheader("🧠 회차별 토픽 비중 (LDA 토픽모델링)")
-    texts = tokenized.tolist()
-    dictionary = corpora.Dictionary(texts)
-    corpus = [dictionary.doc2bow(text) for text in texts]
-    if len(dictionary) > 0 and len(corpus) > 0:
-        lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=3, random_state=42)
-        topic_distributions = [dict(lda_model.get_document_topics(doc)) for doc in corpus]
-        topic_df = pd.DataFrame(topic_distributions).fillna(0)
-        topic_df["회차"] = df["회의록 제목"].fillna("").apply(lambda x: x if x.strip() else "무제 회의")
-        topic_df_melted = topic_df.melt(id_vars="회차", var_name="토픽", value_name="비중")
-
-        chart = alt.Chart(topic_df_melted).mark_line(point=True).encode(
-            x=alt.X("회차:N", title="회차"),
-            y=alt.Y("비중:Q", title="토픽 비중"),
-            color="토픽:N"
-        ).properties(width=700, height=300)
-
-        st.altair_chart(chart, use_container_width=True)
 
         # ✅ 대표 키워드 출력
         st.markdown("### 🔑 토픽별 대표 키워드")
