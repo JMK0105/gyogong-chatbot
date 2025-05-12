@@ -148,10 +148,29 @@ def display_summary_feedback(parsed):
     st.markdown(f"**⚠️ 개선할 점**\n\n{parsed.get('개선 제안', '')}\n{parsed.get('진행 요약', '')}")
     st.markdown(f"**✨ 다음 회의 제안**\n\n{parsed.get('다음 회의 제안', '')}")
 
-# ✅ 키워드 변화 시각화 (라인 차트)
-def keyword_trend_linechart(df):
-    st.subheader("📈 회차별 키워드 변화 추이 (라인 차트)")
+def add_dashboard(df):
+    import matplotlib.pyplot as plt
+    from wordcloud import WordCloud
+    from collections import Counter
+
+    st.header("📊 팀 회의 대시보드")
+
+    # ✅ 키워드 기반 텍스트 결합
     df["키워드기반"] = df["개선 제안"].fillna("") + " " + df["진행 요약"].fillna("")
+
+    # ✅ 1. 회차별 WordCloud
+    st.subheader("🔍 회차별 핵심 키워드 WordCloud")
+    if len(df) > 0:
+        selected_idx = st.slider("WordCloud에 표시할 회차 선택", 0, len(df) - 1, 0)
+        text = df.iloc[selected_idx]["키워드기반"]
+        wordcloud = WordCloud(font_path=None, background_color='white').generate(text)
+        fig1, ax1 = plt.subplots()
+        ax1.imshow(wordcloud, interpolation='bilinear')
+        ax1.axis("off")
+        st.pyplot(fig1)
+
+    # ✅ 2. 키워드 변화 추이 (라인차트)
+    st.subheader("📈 회차별 키워드 변화 추이 (라인 차트)")
     tokenized = df["키워드기반"].apply(lambda x: [w.strip(",.()") for w in x.split() if len(w) > 1])
     all_words = [word for row in tokenized for word in row]
     top_keywords = [kw for kw, _ in Counter(all_words).most_common(5)]
@@ -161,10 +180,14 @@ def keyword_trend_linechart(df):
     trend_df = trend_df.set_index("회차")
     st.line_chart(trend_df)
 
-# ✅ 대시보드 통합
-def add_dashboard(df):
-    st.subheader("📊 팀 회의 분석 대시보드")
-    keyword_trend_linechart(df)
+    # ✅ 3. 회의 흐름 요약
+    st.subheader("📅 회의 흐름 타임라인")
+    for idx, row in df.iterrows():
+        st.markdown(
+            f"**{row.get('회의록 제목', f'{idx+1}회차')}** ({row['시간'].strftime('%Y-%m-%d')})  \n"
+            f"- 💡 개선 제안: {row.get('개선 제안', '없음')}  \n"
+            f"- 📌 다음 회의 제안: {row.get('다음 회의 제안', '없음')}"
+        )
 
 
 # ✅ 인증 및 회의록 선택
