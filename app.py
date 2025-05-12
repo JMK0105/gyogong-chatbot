@@ -212,7 +212,7 @@ if st.session_state.authenticated:
                 with st.spinner("GPT가 회의록을 분석 중입니다..."):
                     try:
                         response = openai_client.chat.completions.create(
-                            model="GPT-4 Turbo",
+                            model="gpt-4",
                             messages=[
                                 {"role": "system", "content": SYSTEM_PROMPT},
                                 {"role": "user", "content": f"[과거 회의 요약]\n{context_summary}\n\n[이번 회의 내용]\n{meeting_text}"}
