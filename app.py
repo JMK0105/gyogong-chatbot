@@ -267,8 +267,8 @@ def add_dashboard(df):
     else:
         st.info("⚠️ 선택된 회차에 대한 LDA 모델링을 위한 충분한 데이터가 없습니다.")
 
-# ✅ GPT 요약 생성 (openai_client가 정의된 이후에만 실행)
 try:
+    # GPT 요약 생성 코드
     topic_summaries = []
     for i in range(3):
         keywords = ", ".join([word for word, _ in lda_model.show_topic(i, topn=5)])
@@ -283,6 +283,7 @@ try:
 이 키워드를 바탕으로 이 회의에서 어떤 주제가 논의되었는지 3줄로 간결하게 요약해주세요.
 항목마다 이모지를 붙여주세요.
 """
+
     topic_response = openai_client.chat.completions.create(
         model="gpt-4-turbo",
         messages=[
@@ -294,8 +295,8 @@ try:
     st.markdown("### 🧠 이번 회의에서 논의된 주제 요약")
     st.info(summary_text)
 
-    except Exception as e:
-        st.warning(f"토픽 요약 생성 실패: {e}")
+except Exception as e:
+    st.warning(f"토픽 요약 생성 실패: {e}")
 
             
 # ✅ 인증 및 회의록 선택
