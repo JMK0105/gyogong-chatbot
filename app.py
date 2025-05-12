@@ -157,38 +157,47 @@ def add_dashboard(df):
     # ✅ 키워드 기반 텍스트 결합
     df["키워드기반"] = df["개선 제안"].fillna("") + " " + df["진행 요약"].fillna("")
 
-    # ✅ 전처리 함수 정의
+    # ✅ 전처리 함수 정의 (명사 단위 분리 고려)
     def clean_korean_text(text):
         import re
-        text = re.sub(r"[^가-힣\\s]", "", text)
+        text = re.sub(r"[^가-힣\s]", "", text)
         words = text.split()
-        stopwords = set(["그리고", "그러나", "때문에", "수업", "활용", "예시", "등", "위한", "하는", "있다", "있습니다"])
-        return [w for w in words if len(w) > 1 and w not in stopwords]
+        stopwords = set([
+            "그리고", "그러나", "때문에", "수업", "활용", "예시", "등",
+            "위한", "하는", "있다", "있습니다", "이다", "된다", "같다",
+            "경우", "정도", "부분", "내용", "방법", "활동", "결과", "제시",
+            "학생", "교사", "수준", "시간", "자료"
+        ])
+        # 2글자 이상 단어 + 불용어 제거
+        return [w for w in words if len(w) > 1 and w not in stopwords and len(w) <= 6]
 
     # ✅ 1. 회차별 WordCloud
     st.subheader("🔍 회차별 핵심 키워드 WordCloud")
     if len(df) > 0:
         selected_idx = st.slider("WordCloud에 표시할 회차 선택", 0, len(df) - 1, 0)
         text = " ".join(clean_korean_text(df.iloc[selected_idx]["키워드기반"]))
-        wordcloud = WordCloud(
-            font_path="fonts/malgun.ttf",
-            background_color='white',
-            width=1000,
-            height=600,
-            max_words=50,
-            max_font_size=90,
-            prefer_horizontal=0.9,
-            colormap='Dark2'
-        ).generate(text)
-        fig1, ax1 = plt.subplots(figsize=(12, 7))
-        ax1.imshow(wordcloud, interpolation='bilinear')
-        ax1.axis("off")
-        st.pyplot(fig1)
+        if not text.strip():
+            st.info("⚠️ 해당 회차에는 표시할 키워드가 충분하지 않습니다.")
+        else:
+            wordcloud = WordCloud(
+                font_path="fonts/malgun.ttf",
+                background_color='white',
+                width=1000,
+                height=600,
+                max_words=50,
+                max_font_size=90,
+                prefer_horizontal=0.9,
+                colormap='Dark2'
+            ).generate(text)
+            fig1, ax1 = plt.subplots(figsize=(12, 7))
+            ax1.imshow(wordcloud, interpolation='bilinear')
+            ax1.axis("off")
+            st.pyplot(fig1)
 
     # ✅ 2. 키워드 변화 추이 (Altair 라인차트)
     st.subheader("📈 회차별 키워드 변화 추이 (라인 차트)")
     tokenized = df["키워드기반"].apply(clean_korean_text)
-    all_words = [word for row in tokenized for word in row]
+    all_words = [word for row in tokenized for word in row if len(word) <= 6]
     top_keywords = [kw for kw, _ in Counter(all_words).most_common(5)]
     trend_data = [[row.count(kw) for kw in top_keywords] for row in tokenized]
     trend_df = pd.DataFrame(trend_data, columns=top_keywords)
@@ -196,7 +205,7 @@ def add_dashboard(df):
     trend_df_melted = trend_df.melt(id_vars="회차", var_name="키워드", value_name="빈도")
 
     chart = alt.Chart(trend_df_melted).mark_line(point=True).encode(
-        x=alt.X("회차:N", title="회차"),
+        x=alt.X("회차:N", title="회차", axis=alt.Axis(labelAngle=0)),
         y=alt.Y("빈도:Q", title="등장 빈도", scale=alt.Scale(domain=[0, trend_df_melted["빈도"].max() + 1])),
         color="키워드:N"
     ).properties(width=700, height=300)
