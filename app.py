@@ -295,7 +295,7 @@ if st.session_state.authenticated:
         st.session_state.selected_file = selected_file
 
         if st.button("🔍 회의록 분석 시작", disabled=st.session_state.get("button_disabled", False)):
-    st.session_state["show_dashboard"] = False  # ✅ 대시보드 상태 초기화
+            st.session_state["show_dashboard"] = False  # ✅ 대시보드 상태 초기화
             st.session_state.button_disabled = True
             time.sleep(2)
 
