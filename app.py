@@ -392,8 +392,10 @@ if st.session_state.authenticated:
                             try:
                                 contribution_prompt = f"""
                         다음은 회의 내용입니다. 이 회의에서 등장하는 참여자(이름)들을 기준으로, 각 인물이 회의에서 얼마나 기여했는지를 100% 기준으로 추정하여 
-                        아무 설명 없이 JSON만 반환하세요. 
-                        형식: {{"이름1": 40, "이름2": 30, "이름3": 30}}
+                        JSON 형식으로 결과를 먼저 출력하고, 그 다음 각 기여도에 대한 간단한 해석을 2줄 이내로 설명해주세요.
+                        아래 두 가지 항목을 순서대로 제공하세요:
+                        1. 기여도 비율 (JSON 형식)
+                        2. 각 팀원이 어떤 역할을 했는지, 왜 해당 기여도로 판단했는지 간단히 해석
                         
                         [회의 내용]
                         {meeting_text}
@@ -405,6 +407,10 @@ if st.session_state.authenticated:
                                         {"role": "user", "content": contribution_prompt}
                                     ]
                                 )
+
+                                import re
+
+                            
                                 raw_text = contribution_response.choices[0].message.content.strip()
 
                                 # 🎯 JSON 부분만 추출 (중괄호 블록만)
@@ -412,7 +418,11 @@ if st.session_state.authenticated:
                                 if not json_str_match:
                                     raise ValueError("JSON 형식이 응답에 포함되지 않았습니다.")
                                 contribution_json = json.loads(json_str_match.group())
-                                
+
+                                # 해석 텍스트만 따로 추출
+                                explanation_match = re.split(r"\}\s*", raw_text, maxsplit=1)
+                                explanation_text = explanation_match[1].strip() if len(explanation_match) > 1 else "해석이 없습니다."
+
                                 # 🎯 시각화
                                 st.markdown("#### 🔍 추정된 기여도 분포 (GPT 판단)")
                                 fig, ax = plt.subplots()
