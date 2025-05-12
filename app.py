@@ -428,7 +428,7 @@ if st.session_state.authenticated:
                                 font_path = "fonts/malgun.ttf"  # 또는 절대 경로
                                 font_prop = font_manager.FontProperties(fname=font_path)
 
-                                st.markdown("#### 🔍 추정된 기여도 분포 (GPT 판단)")
+                                st.markdown("#### 🔍 추정된 기여도 분포")
                                 fig, ax = plt.subplots()
                                 wedges, texts, autotexts = ax.pie(contribution_json.values(), 
                                                                   labels=contribution_json.keys(), autopct='%1.1f%%', startangle=90, textprops={'fontsize': 12})
