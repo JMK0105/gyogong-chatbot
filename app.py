@@ -151,14 +151,14 @@ def display_summary_feedback(parsed):
 
 def add_dashboard(df):
     if "show_dashboard" not in st.session_state or st.session_state.get("last_dashboard_key") != df['회의록 제목'].iloc[-1]:
-    st.session_state["show_dashboard"] = False
-    st.session_state["last_dashboard_key"] = df['회의록 제목'].iloc[-1]
+        st.session_state["show_dashboard"] = False
+        st.session_state["last_dashboard_key"] = df['회의록 제목'].iloc[-1]
 
-    if not st.session_state["show_dashboard"]:
-    if st.button("📊 대시보드 확인하기", key=f"dashboard_button_{df['회의록 제목'].iloc[-1]}"):
-        st.session_state["show_dashboard"] = True
-    else:
-        return
+        if not st.session_state["show_dashboard"]:
+        if st.button("📊 대시보드 확인하기", key=f"dashboard_button_{df['회의록 제목'].iloc[-1]}"):
+            st.session_state["show_dashboard"] = True
+        else:
+            return
         
     import altair as alt
     from gensim import corpora
