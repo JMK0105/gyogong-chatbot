@@ -167,11 +167,10 @@ def add_dashboard(df):
             st.session_state["show_dashboard"] = True
         else:
             return
-        import matplotlib.pyplot as plt
-    from wordcloud import WordCloud
-    from collections import Counter
+
+
+
     import altair as alt
-    import pandas as pd
     from gensim import corpora
     from gensim.models.ldamodel import LdaModel
 
@@ -237,7 +236,7 @@ def add_dashboard(df):
             y=alt.Y("빈도:Q", title="등장 빈도", scale=alt.Scale(domain=[0, trend_df_melted["빈도"].max() + 1])),
             color="키워드:N"
         ).properties(width=500, height=300)
-                    st.altair_chart(chart, use_container_width=True)
+                            st.altair_chart(chart, use_container_width=True)
 
             # ✅ 토픽별 요약 문장 생성
             st.markdown("### 📝 토픽 요약 문장")
