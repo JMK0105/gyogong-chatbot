@@ -241,7 +241,6 @@ def add_dashboard(df):
     # 회차별 LDA 분석 결과 (누적 데이터)
     st.subheader("🧠 전체 회차 누적 데이터 LDA 분석")
     # 누적 데이터를 기반으로 LDA 분석 실행
-    selected_indexes = st.multiselect("분석할 회차 선택", df.index, format_func=lambda i: df.loc[i, "회의록 제목"] or f"{i+1}회차")
     if selected_indexes:
     selected_texts = df.loc[selected_indexes, "분석텍스트"].apply(clean_korean_text).tolist()
     dictionary = corpora.Dictionary(selected_texts)
@@ -264,7 +263,7 @@ def add_dashboard(df):
         ).properties(width=700, height=400)
         st.altair_chart(chart, use_container_width=True)
 
-        # ✅ 여기에 요약 생성 try-except 블록 넣기
+        # ✅ GPT 요약 생성
         try:
             topic_summaries = []
             for i in range(3):
@@ -280,7 +279,6 @@ def add_dashboard(df):
 이 키워드를 바탕으로 이 회의에서 어떤 주제가 논의되었는지 3줄로 간결하게 요약해주세요.
 항목마다 이모지를 붙여주세요.
 """
-
             topic_response = openai_client.chat.completions.create(
                 model="gpt-4-turbo",
                 messages=[
