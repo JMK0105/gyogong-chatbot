@@ -394,11 +394,7 @@ if st.session_state.authenticated:
                             st.info(f"✅ 동일한 회의록 내용을 분석한 이력이 있습니다.")
                         else:
                             if save_to_sheet(gc, team_name, selected_file, parsed, meeting_text):
-                                st.success("📌 변경된 회의록 내용이 확인되었습니다.")
-                        display_summary_feedback(parsed)
-                             
-                        if save_to_sheet(gc, team_name, selected_file, parsed, meeting_text):
-                            st.success("📌 회의록 전체 내용이 확인되었습니다.")
+                                st.success("📌 회의록 내용이 확인되었습니다.")
                         display_summary_feedback(parsed)
 
             except openai.RateLimitError:
