@@ -200,20 +200,28 @@ def add_dashboard(df):
                     ax1.axis("off")
                     st.pyplot(fig1)
 
+
+        
+
+        
         with col2:
             tokenized = df["분석텍스트"].apply(clean_korean_text)
             all_words = [word for row in tokenized for word in row if len(word) <= 6]
-            top_keywords = [kw for kw, _ in Counter(all_words).most_common(5)]
+            top_keywords = [kw for kw, _ in Counter(all_words).most_common(4)]
             trend_data = [[row.count(kw) for kw in top_keywords] for row in tokenized]
             trend_df = pd.DataFrame(trend_data, columns=top_keywords)
-            trend_df["회차"] = df["회의록 제목"].fillna("").apply(lambda x: x if x.strip() else "무제 회의")
+            trend_df["회차"] = [f"{i+1}회차" for i in range(len(df))]
             trend_df_melted = trend_df.melt(id_vars="회차", var_name="키워드", value_name="빈도")
 
             chart = alt.Chart(trend_df_melted).mark_line(point=True).encode(
-                x=alt.X("회차:N", title="회차", axis=alt.Axis(labelAngle=0)),
-                y=alt.Y("빈도:Q", title="등장 빈도", scale=alt.Scale(domain=[0, trend_df_melted["빈도"].max() + 1])),
-                color="키워드:N"
-            ).properties(width=500, height=300)
+                x=alt.X("회차:N", title="회의 회차", axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("빈도:Q", title="등장 빈도수", scale=alt.Scale(domain=[0, trend_df_melted["빈도"].max() + 1])),
+                color=alt.Color("키워드:N", title="주요 키워드"),
+                tooltip=["회차", "키워드", "빈도"]
+            ).properties(
+                title="회차별 주요 키워드 등장 빈도 변화",
+                width=500, height=300
+            )
             st.altair_chart(chart, use_container_width=True)
 
     # 2️⃣ LDA 분석 & 요약
