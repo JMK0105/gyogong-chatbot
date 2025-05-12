@@ -394,6 +394,7 @@ if st.session_state.authenticated:
                 self.set_font("malgun", size=12)
 
             def add_text(self, text):
+                text = re.sub(r'[\U00010000-\U0010ffff]', '', text)  # 이모지 제거
                 for line in text.split('\n'):
                     self.multi_cell(0, 10, line)
 
