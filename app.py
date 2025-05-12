@@ -399,11 +399,11 @@ if st.session_state.authenticated:
                 for line in text.split('\n'):
                     self.multi_cell(0, 10, line)
  
-       if st.session_state.result_text:
-          if st.button("📄 분석 결과 PDF로 저장"):
-              filename = f"{selected_file}_분석결과.pdf"
-              pdf = UnicodePDF()
-              pdf.add_text(st.session_state.result_text)
-              pdf.output(filename)
-              with open(filename, "rb") as f:
-                  st.download_button("⬇️ PDF 다운로드", f, file_name=filename) 
+        if st.session_state.result_text:
+           if st.button("📄 분석 결과 PDF로 저장"):
+               filename = f"{selected_file}_분석결과.pdf"
+               pdf = UnicodePDF()
+               pdf.add_text(st.session_state.result_text)
+               pdf.output(filename)
+               with open(filename, "rb") as f:
+                   st.download_button("⬇️ PDF 다운로드", f, file_name=filename) 
