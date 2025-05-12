@@ -239,7 +239,7 @@ def add_dashboard(df):
                 topic_keywords.append({"토픽": f"토픽 {i+1}", "키워드": word, "확률": prob})
 
         topic_df = pd.DataFrame(topic_keywords)
-                stacked_chart = alt.Chart(topic_df).mark_bar().encode(
+        stacked_chart = alt.Chart(topic_df).mark_bar().encode(
             x=alt.X("토픽:N", title="토픽"),
             y=alt.Y("확률:Q", stack="normalize", title="비중"),
             color=alt.Color("키워드:N"),
