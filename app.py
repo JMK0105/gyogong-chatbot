@@ -236,14 +236,14 @@ def add_dashboard(df):
             y=alt.Y("빈도:Q", title="등장 빈도", scale=alt.Scale(domain=[0, trend_df_melted["빈도"].max() + 1])),
             color="키워드:N"
         ).properties(width=500, height=300)
-                            st.altair_chart(chart, use_container_width=True)
+          st.altair_chart(chart, use_container_width=True)
 
             # ✅ 토픽별 요약 문장 생성
             st.markdown("### 📝 토픽 요약 문장")
             for i in range(2):
                 keywords = [word for word, _ in lda_model.show_topic(i, topn=5)]
                 if len(keywords) >= 3:
-                    example = f"이 토픽은 '{keywords[0]}', '{keywords[1]}', '{keywords[2]}' 같은 단어를 중심으로 구성되어 있어요. 이 회차에서는 이와 관련된 논의가 주를 이루었다고 볼 수 있어요."
+                    example = f"이 토픽은 '{keywords[0]}', '{keywords[1]}', '{keywords[2]}' 같은 단어를 중심으로 구성되어 있어요."
                 else:
                     example = f"이 토픽은 '{', '.join(keywords)}' 등의 단어를 중심으로 구성되어 있어요."
                 st.markdown(f"- 토픽 {i+1}: {example}")
