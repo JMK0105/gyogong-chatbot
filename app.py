@@ -225,13 +225,32 @@ def add_dashboard(df):
 
     st.altair_chart(chart, use_container_width=True)
 
+   # ✅ 3. 회차별 토픽 비중 (LDA)
+    st.subheader("🧠 회차별 토픽 비중 (LDA 토픽모델링)")
+    texts = tokenized.tolist()
+    dictionary = corpora.Dictionary(texts)
+    corpus = [dictionary.doc2bow(text) for text in texts]
+    if len(dictionary) > 0 and len(corpus) > 0:
+        lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=3, random_state=42)
+        topic_distributions = [dict(lda_model.get_document_topics(doc)) for doc in corpus]
+        topic_df = pd.DataFrame(topic_distributions).fillna(0)
+        topic_df["회차"] = df["회의록 제목"].fillna("").apply(lambda x: x if x.strip() else "무제 회의")
+        topic_df_melted = topic_df.melt(id_vars="회차", var_name="토픽", value_name="비중")
+
+        chart = alt.Chart(topic_df_melted).mark_line(point=True).encode(
+            x=alt.X("회차:N", title="회차"),
+            y=alt.Y("비중:Q", title="토픽 비중"),
+            color="토픽:N"
+        ).properties(width=700, height=300)
+
+        st.altair_chart(chart, use_container_width=True)
+
         # ✅ 대표 키워드 출력
         st.markdown("### 🔑 토픽별 대표 키워드")
         for i, topic in lda_model.print_topics(num_words=5):
             st.markdown(f"**토픽 {i+1}**: {topic}")
     else:
         st.info("⚠️ 토픽 모델링을 위한 충분한 데이터가 없습니다.")
-
 
 # ✅ 인증 및 회의록 선택
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
