@@ -159,11 +159,8 @@ def add_dashboard(df):
             st.session_state["show_dashboard"] = True
         else:
             return
-        import matplotlib.pyplot as plt
-    from wordcloud import WordCloud
-    from collections import Counter
+
     import altair as alt
-    import pandas as pd
     from gensim import corpora
     from gensim.models.ldamodel import LdaModel
 
