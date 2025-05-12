@@ -150,6 +150,18 @@ def display_summary_feedback(parsed):
     st.markdown(f"**✨ 다음 회의 제안**\n\n{parsed.get('다음 회의 제안', '')}")
 
 def add_dashboard(df):
+    if "show_dashboard" not in st.session_state:
+        st.session_state["show_dashboard"] = False
+
+    if not st.session_state["show_dashboard"]:
+        if st.button("📊 대시보드 확인하기"):
+            st.session_state["show_dashboard"] = True
+        else:
+            return
+    show = st.button("📊 대시보드 확인하기")
+    if not show:
+        return
+        
     import altair as alt
     from gensim import corpora
     from gensim.models.ldamodel import LdaModel
@@ -163,7 +175,7 @@ def add_dashboard(df):
         words = text.split()
         stopwords = set([
             "그리고", "그러나", "때문에", "등", "위한", "하는", "있다", "있습니다", "이다", "된다", "같다",
-            "경우", "정도", "부분", "내용", "방법", "활동", "결과", "제시", "대한", "대해", "이에", "로서",
+            "경우", "정도", "부분", "대한", "대해", "이에", "로서",
             "으로", "것이", "로부터", "에게", "된다면", "합니다", "있습니다", "있어요"
         ])
         return [w for w in words if len(w) > 1 and w not in stopwords and len(w) <= 6]
@@ -174,7 +186,10 @@ def add_dashboard(df):
     # ✅ 1. 회차별 WordCloud
     st.subheader("🔍 회차별 핵심 키워드 WordCloud")
     if len(df) > 0:
-        selected_idx = st.slider("WordCloud에 표시할 회차 선택", 0, len(df) - 1, 0)
+        if len(df) == 1:
+            selected_idx = 0
+        else:
+            selected_idx = st.slider("WordCloud에 표시할 회차 선택", 0, len(df) - 1, 0)
         text = " ".join(clean_korean_text(df.iloc[selected_idx]["분석텍스트"]))
         if not text.strip():
             st.info("⚠️ 해당 회차에는 표시할 키워드가 충분하지 않습니다.")
