@@ -259,7 +259,7 @@ def add_dashboard(df):
 항목마다 이모지를 붙여주세요.
 """
 
-                    openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+                    openai_client = openai.OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
                     topic_response = openai_client.chat.completions.create(
                         model="gpt-4-turbo",
