@@ -149,11 +149,21 @@ def save_to_sheet(gc, team_name, title, parsed, full_text=""):
 
 # ✅ 회의 요약 요점 출력
 def display_summary_feedback(parsed):
-    st.subheader("📋 회의 요약 피드백")
-    st.markdown(f"**🍀 팀워크**\n\n{parsed.get('역할 정리', '')}")
-    st.markdown(f"**👍 잘한 점**\n\n{parsed.get('자기조절', '')}\n{parsed.get('정서적 피드백', '')}")
-    st.markdown(f"**⚠️ 개선할 점**\n\n{parsed.get('개선 제안', '')}\n{parsed.get('메타인지', '')}\n{parsed.get('진행 요약', '')}")
-    st.markdown(f"**✨ 다음 회의 제안**\n\n{parsed.get('다음 회의 제안', '')}")
+    st.subheader("📋 회의록 피드백")
+    st.markdown("### 🍀 팀워크")
+    st.markdown(parsed.get("역할 정리", "").strip())
+
+    st.markdown("### 👍 잘한 점")
+    st.markdown(parsed.get("자기조절", "").strip())
+    st.markdown(parsed.get("정서적 피드백", "").strip())
+
+    st.markdown("### ⚠️ 개선할 점")
+    st.markdown(parsed.get("개선 제안", "").strip())
+    st.markdown(parsed.get("메타인지", "").strip())
+    st.markdown(parsed.get("진행 요약", "").strip())
+
+    st.markdown("### ✨ 다음 회의 제안")
+    st.markdown(parsed.get("다음 회의 제안", "").strip())
 
 def add_dashboard(df):
     import altair as alt
@@ -182,7 +192,7 @@ def add_dashboard(df):
     df["분석텍스트"] = df["전체 회의록"].fillna("")
 
     # 1️⃣ 워드클라우드 & 키워드 변화 추이
-    with st.expander("🔍 회차별 핵심 키워드 & 키워드 변화 추이", expanded=False):
+    with st.expander("🔍 회차별 핵심 키워드", expanded=False):
         col1, col2 = st.columns([1, 1.5])
 
         with col1:
@@ -209,10 +219,6 @@ def add_dashboard(df):
                     ax1.axis("off")
                     st.pyplot(fig1)
 
-
-        
-
-        
         with col2:
             tokenized = df["분석텍스트"].apply(clean_korean_text)
             all_words = [word for row in tokenized for word in row if len(word) <= 6]
@@ -234,7 +240,7 @@ def add_dashboard(df):
             st.altair_chart(chart, use_container_width=True)
 
     # 2️⃣ LDA 분석 & 요약
-    with st.expander("🧠 전체 회차 누적 데이터 LDA 분석", expanded=False):
+    with st.expander("🧠 회의록 텍스트 LDA 분석", expanded=False):
         selected_indexes = st.multiselect("분석할 회차 선택", df.index, format_func=lambda i: df.loc[i, "회의록 제목"] or f"{i+1}회차")
 
         if selected_indexes:
@@ -395,7 +401,23 @@ if st.session_state.authenticated:
                             if save_to_sheet(gc, team_name, selected_file, parsed, meeting_text):
                                 st.success("📌 회의록 내용이 확인되었습니다.")
                         display_summary_feedback(parsed)
+                        
+                        # ✅ GPT 응답 전체 보기 + 요약 접기
+                         result_text = st.session_state.result_text
+                         if '--- 요약 ---' in result_text:
+                             main_part, summary_part = result_text.split('--- 요약 ---', 1)
+                         else:
+                              main_part = result_text
+                              summary_part = ""
 
+                         st.markdown("### 📋 회의록 GPT 분석 결과)
+                         st.markdown(main_part)
+
+                         if summary_part.strip():
+                              with st.expander("📝 요점 보기", expanded=False):
+                                   st.markdown("**--- 요약 ---**\n" + summary_part)
+           
+       
             except openai.RateLimitError:
                 st.warning("⏱️ 요청이 너무 빠릅니다. 5초 후 다시 시도해주세요.")
             except Exception as e:
