@@ -12,3 +12,4 @@ matplotlib
 seaborn
 altair
 fpdf
+wordcloud
