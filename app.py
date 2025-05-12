@@ -163,7 +163,12 @@ def add_dashboard(df):
     if len(df) > 0:
         selected_idx = st.slider("WordCloud에 표시할 회차 선택", 0, len(df) - 1, 0)
         text = df.iloc[selected_idx]["키워드기반"]
-        wordcloud = WordCloud(font_path=None, background_color='white').generate(text)
+        wordcloud = WordCloud(
+    font_path = "fonts/malgun.ttf",  # 또는 사용 가능한 한글 폰트 경로
+    background_color='white',
+    width=800,
+    height=400
+).generate(text)
         fig1, ax1 = plt.subplots()
         ax1.imshow(wordcloud, interpolation='bilinear')
         ax1.axis("off")
@@ -179,15 +184,6 @@ def add_dashboard(df):
     trend_df["회차"] = [f"{i+1}회차" for i in range(len(trend_df))]
     trend_df = trend_df.set_index("회차")
     st.line_chart(trend_df)
-
-    # ✅ 3. 회의 흐름 요약
-    st.subheader("📅 회의 흐름 타임라인")
-    for idx, row in df.iterrows():
-        st.markdown(
-            f"**{row.get('회의록 제목', f'{idx+1}회차')}** ({row['시간'].strftime('%Y-%m-%d')})  \n"
-            f"- 💡 개선 제안: {row.get('개선 제안', '없음')}  \n"
-            f"- 📌 다음 회의 제안: {row.get('다음 회의 제안', '없음')}"
-        )
 
 
 # ✅ 인증 및 회의록 선택
