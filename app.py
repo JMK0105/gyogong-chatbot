@@ -238,35 +238,23 @@ def add_dashboard(df):
         ).properties(width=500, height=300)
         st.altair_chart(chart, use_container_width=True)
 
-    # ✅ 토픽별 요약 문장 생성
-    st.markdown("### 📝 토픽 요약 문장")
-    for i in range(2):
-        keywords = [word for word, _ in lda_model.show_topic(i, topn=5)]
-        if len(keywords) >= 3:
-            example = f"이 토픽은 '{keywords[0]}', '{keywords[1]}', '{keywords[2]}' 같은 단어를 중심으로 구성되어 있어요."
-        else:
-            example = f"이 토픽은 '{', '.join(keywords)}' 등의 단어를 중심으로 구성되어 있어요."
-            st.markdown(f"- 토픽 {i+1}: {example}")        
+    # 회차별 LDA 분석 결과 (누적 데이터)
+    st.subheader("🧠 전체 회차 누적 데이터 LDA 분석")
+    # 누적 데이터를 기반으로 LDA 분석 실행
+    selected_indexes = st.multiselect("분석할 회차 선택", df.index, format_func=lambda i: df.loc[i, "회의록 제목"] or f"{i+1}회차")
+    if selected_indexes:
+        selected_texts = df.loc[selected_indexes, "분석텍스트"].apply(clean_korean_text).tolist()
+        dictionary = corpora.Dictionary(selected_texts)
+        corpus = [dictionary.doc2bow(text) for text in selected_texts]
 
-    
-
-    # ✅ 3. 회차별 LDA 분석 결과 (선택 회차 기준)
-    st.subheader("🧠 회차별 LDA 대표 토픽")
-    if len(df) > 0:
-        lda_idx = st.selectbox("토픽 분석 회차 선택", df.index, format_func=lambda i: df.loc[i, "회의록 제목"] or f"{i+1}회차")
-        single_text = clean_korean_text(df.loc[lda_idx, "분석텍스트"])
-        if len(single_text) < 5:
-            st.info("⚠️ 해당 회차는 토픽 모델링에 충분한 텍스트가 없습니다.")
-        else:
-            dictionary = corpora.Dictionary([single_text])
-            corpus = [dictionary.doc2bow(single_text)]
-            lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=2, random_state=42)
-
+        if len(dictionary) > 0 and len(corpus) > 0:
+            lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=3, random_state=42)
             topic_keywords = []
-            for i in range(2):
+            for i in range(3):  # 토픽 수를 3개로 설정
                 for word, prob in lda_model.show_topic(i, topn=5):
                     topic_keywords.append({"토픽": f"토픽 {i+1}", "키워드": word, "확률": prob})
 
+            # 토픽 키워드와 확률로 DataFrame 생성
             topic_df = pd.DataFrame(topic_keywords)
             chart = alt.Chart(topic_df).mark_bar().encode(
                 x=alt.X("토픽:N", title="토픽"),
@@ -274,7 +262,11 @@ def add_dashboard(df):
                 color=alt.Color("키워드:N"),
                 tooltip=["토픽", "키워드", "확률"]
             ).properties(width=700, height=400)
+
             st.altair_chart(chart, use_container_width=True)
+
+    else:
+        st.info("⚠️ 선택된 회차에 대한 LDA 모델링을 위한 충분한 데이터가 없습니다.")
             
 # ✅ 인증 및 회의록 선택
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
