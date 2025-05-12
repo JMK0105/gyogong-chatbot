@@ -150,6 +150,14 @@ def display_summary_feedback(parsed):
     st.markdown(f"**✨ 다음 회의 제안**\n\n{parsed.get('다음 회의 제안', '')}")
 
 def add_dashboard(df):
+    import matplotlib.pyplot as plt
+    from wordcloud import WordCloud
+    from collections import Counter
+    import altair as alt
+    import pandas as pd
+    from gensim import corpora
+    from gensim.models.ldamodel import LdaModel
+
     if "show_dashboard" not in st.session_state or st.session_state.get("last_dashboard_key") != df['회의록 제목'].iloc[-1]:
         st.session_state["show_dashboard"] = False
         st.session_state["last_dashboard_key"] = df['회의록 제목'].iloc[-1]
@@ -159,8 +167,11 @@ def add_dashboard(df):
             st.session_state["show_dashboard"] = True
         else:
             return
-
+        import matplotlib.pyplot as plt
+    from wordcloud import WordCloud
+    from collections import Counter
     import altair as alt
+    import pandas as pd
     from gensim import corpora
     from gensim.models.ldamodel import LdaModel
 
@@ -226,33 +237,46 @@ def add_dashboard(df):
             y=alt.Y("빈도:Q", title="등장 빈도", scale=alt.Scale(domain=[0, trend_df_melted["빈도"].max() + 1])),
             color="키워드:N"
         ).properties(width=500, height=300)
-        st.altair_chart(chart, use_container_width=True)
+                    st.altair_chart(chart, use_container_width=True)
 
+            # ✅ 토픽별 요약 문장 생성
+            st.markdown("### 📝 토픽 요약 문장")
+            for i in range(2):
+                keywords = [word for word, _ in lda_model.show_topic(i, topn=5)]
+                if len(keywords) >= 3:
+                    example = f"이 토픽은 '{keywords[0]}', '{keywords[1]}', '{keywords[2]}' 같은 단어를 중심으로 구성되어 있어요. 이 회차에서는 이와 관련된 논의가 주를 이루었다고 볼 수 있어요."
+                else:
+                    example = f"이 토픽은 '{', '.join(keywords)}' 등의 단어를 중심으로 구성되어 있어요."
+                st.markdown(f"- 토픽 {i+1}: {example}")
 
-   # ✅ 3. 대표 토픽 키워드 막대 그래프 (LDA 기반)
-    st.subheader("🧠 대표 토픽 키워드 (LDA 기반 분석)")
-    texts = tokenized.tolist()
-    dictionary = corpora.Dictionary(texts)
-    corpus = [dictionary.doc2bow(text) for text in texts]
+    
 
-    if len(dictionary) > 0 and len(corpus) > 0:
-        lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=3, random_state=42)
-        topic_keywords = []
-        for i in range(3):
-            for word, prob in lda_model.show_topic(i, topn=5):
-                topic_keywords.append({"토픽": f"토픽 {i+1}", "키워드": word, "확률": prob})
+    # ✅ 3. 회차별 LDA 분석 결과 (선택 회차 기준)
+    st.subheader("🧠 회차별 LDA 대표 토픽")
+    if len(df) > 0:
+        lda_idx = st.selectbox("토픽 분석 회차 선택", df.index, format_func=lambda i: df.loc[i, "회의록 제목"] or f"{i+1}회차")
+        single_text = clean_korean_text(df.loc[lda_idx, "분석텍스트"])
+        if len(single_text) < 5:
+            st.info("⚠️ 해당 회차는 토픽 모델링에 충분한 텍스트가 없습니다.")
+        else:
+            dictionary = corpora.Dictionary([single_text])
+            corpus = [dictionary.doc2bow(single_text)]
+            lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=2, random_state=42)
 
-        topic_df = pd.DataFrame(topic_keywords)
-        stacked_chart = alt.Chart(topic_df).mark_bar().encode(
-            x=alt.X("토픽:N", title="토픽"),
-            y=alt.Y("확률:Q", stack="normalize", title="비중"),
-            color=alt.Color("키워드:N"),
-            tooltip=["토픽", "키워드", "확률"]
-        ).properties(width=700, height=400)
-        st.altair_chart(stacked_chart, use_container_width=True)
-    else:
-        st.info("⚠️ 토픽 모델링을 위한 충분한 데이터가 없습니다.")
+            topic_keywords = []
+            for i in range(2):
+                for word, prob in lda_model.show_topic(i, topn=5):
+                    topic_keywords.append({"토픽": f"토픽 {i+1}", "키워드": word, "확률": prob})
 
+            topic_df = pd.DataFrame(topic_keywords)
+            chart = alt.Chart(topic_df).mark_bar().encode(
+                x=alt.X("토픽:N", title="토픽"),
+                y=alt.Y("확률:Q", title="비중"),
+                color=alt.Color("키워드:N"),
+                tooltip=["토픽", "키워드", "확률"]
+            ).properties(width=700, height=400)
+            st.altair_chart(chart, use_container_width=True)
+            
 # ✅ 인증 및 회의록 선택
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
 if code_input:
