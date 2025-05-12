@@ -386,6 +386,7 @@ if st.session_state.authenticated:
 
        
 
+        import re
         class UnicodePDF(FPDF):
             def __init__(self):
                 super().__init__()
@@ -397,9 +398,7 @@ if st.session_state.authenticated:
                 text = re.sub(r'[\U00010000-\U0010ffff]', '', text)  # 이모지 제거
                 for line in text.split('\n'):
                     self.multi_cell(0, 10, line)
-
-
-        
+ 
         if st.session_state.result_text:
             if st.button("📄 분석 결과 PDF로 저장"):
                 filename = f"{selected_file}_분석결과.pdf"
