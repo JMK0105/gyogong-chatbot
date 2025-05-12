@@ -385,9 +385,9 @@ if st.session_state.authenticated:
                             if save_to_sheet(gc, team_name, selected_file, parsed, meeting_text):
                                 st.success("📌 회의록 내용이 확인되었습니다.")
                         display_summary_feedback(parsed)
-                        display_summary_feedback(parsed)
 
                         # ✅ GPT 기반 팀원별 기여도 추정 및 시각화
+                        st.subheader("👥 GPT 기반 팀원별 기여도")
                         with st.expander("📈 팀원별 기여도 분석"):
                             try:
                                 contribution_prompt = f"""
@@ -406,14 +406,16 @@ if st.session_state.authenticated:
                                         {"role": "user", "content": contribution_prompt}
                                     ]
                                 )
-                                contribution_json = json.loads(contribution_response.choices[0].message.content)
-                                st.subheader("👥 GPT 기반 팀원별 기여도")
-                                st.pyplot(plt.pie(
-                                    contribution_json.values(),
-                                    labels=contribution_json.keys(),
-                                    autopct='%1.1f%%',
-                                    startangle=140
-                                ))
+                                contribution_raw = contribution_response.choices[0].message.content.strip()
+                                contribution_json = json.loads(contribution_raw)
+
+                                # 🎯 시각화
+                                st.markdown("#### 🔍 추정된 기여도 분포 (GPT 판단)")
+                                fig, ax = plt.subplots()
+                                ax.pie(contribution_json.values(), labels=contribution_json.keys(), autopct='%1.1f%%', startangle=90)
+                                ax.axis('equal')
+                                st.pyplot(fig)
+                            
                             except Exception as e:
                                 st.warning(f"⚠️ 기여도 분석 실패: {e}")
             
