@@ -150,50 +150,27 @@ def display_summary_feedback(parsed):
     st.markdown(f"**✨ 다음 회의 제안**\n\n{parsed.get('다음 회의 제안', '')}")
 
 def add_dashboard(df):
-    import matplotlib.pyplot as plt
-    from wordcloud import WordCloud
-    from collections import Counter
-    import altair as alt
-    import pandas as pd
-    from gensim import corpora
-    from gensim.models.ldamodel import LdaModel
-
-    if "show_dashboard" not in st.session_state or st.session_state.get("last_dashboard_key") != df['회의록 제목'].iloc[-1]:
-        st.session_state["show_dashboard"] = False
-        st.session_state["last_dashboard_key"] = df['회의록 제목'].iloc[-1]
-
-    if not st.session_state["show_dashboard"]:
-        if st.button("📊 대시보드 확인하기", key=f"dashboard_button_{df['회의록 제목'].iloc[-1]}"):
-            st.session_state["show_dashboard"] = True
-        else:
-            return
-
-
-
     import altair as alt
     from gensim import corpora
     from gensim.models.ldamodel import LdaModel
 
     st.header("📊 팀 회의 대시보드")
 
-    # ✅ 전처리 함수 정의
     def clean_korean_text(text):
         import re
         text = re.sub(r"[^가-힣\s]", "", text)
         words = text.split()
         stopwords = set([
-            "그리고", "그러나", "때문에", "수업", "활용", "예시", "등",
+            "그리고", "그러나", "때문에", "등",
             "위한", "하는", "있다", "있습니다", "이다", "된다", "같다",
             "경우", "정도", "부분", "내용", "방법", "활동", "결과", "제시",
-            "학생", "교사", "수준", "시간", "자료", "대한", "대해", "이에", "로서",
-            "으로", "것이", "로부터", "에게", "된다면", "합니다", "있습니다", "있어요"
+            "대한", "대해", "이에", "로서",
+            "으로", "것이", "로부터", "에게", "된다면", "합니다", "있어요"
         ])
         return [w for w in words if len(w) > 1 and w not in stopwords and len(w) <= 6]
 
-    # ✅ 회의록 전체 텍스트 기준 분석 텍스트 열 생성
     df["분석텍스트"] = df["전체 회의록"].fillna("")
 
-    # ✅ 1~2. 워드클라우드 & 키워드 변화 추이 (가로 배치)
     st.subheader("🔍 회차별 핵심 키워드 & 키워드 변화 추이")
     col1, col2 = st.columns([1, 1.5])
 
@@ -238,9 +215,9 @@ def add_dashboard(df):
         ).properties(width=500, height=300)
         st.altair_chart(chart, use_container_width=True)
 
-    # 회차별 LDA 분석 결과 (누적 데이터)
     st.subheader("🧠 전체 회차 누적 데이터 LDA 분석")
-    # 누적 데이터를 기반으로 LDA 분석 실행
+    selected_indexes = st.multiselect("분석할 회차 선택", df.index, format_func=lambda i: df.loc[i, "회의록 제목"] or f"{i+1}회차")
+
     if selected_indexes:
         selected_texts = df.loc[selected_indexes, "분석텍스트"].apply(clean_korean_text).tolist()
         dictionary = corpora.Dictionary(selected_texts)
@@ -248,7 +225,6 @@ def add_dashboard(df):
 
         if len(dictionary) > 0 and len(corpus) > 0:
             lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=3, random_state=42)
-
             topic_keywords = []
             for i in range(3):
                 for word, prob in lda_model.show_topic(i, topn=5):
@@ -271,7 +247,7 @@ def add_dashboard(df):
                     topic_summaries.append(f"토픽 {i+1}: {keywords}")
 
                 summary_prompt = f"""
-다음은 회의 내용에서 추출된 주요 토픽입니다.
+다음은 회의 내용에서 LDA분석을 통해 추출된 주요 토픽입니다.
 각 토픽은 자주 등장한 핵심 키워드들로 구성되어 있습니다:
 
 {chr(10).join(topic_summaries)}
@@ -279,6 +255,10 @@ def add_dashboard(df):
 이 키워드를 바탕으로 이 회의에서 어떤 주제가 논의되었는지 3줄로 간결하게 요약해주세요.
 항목마다 이모지를 붙여주세요.
 """
+
+                from openai import OpenAI
+                openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
                 topic_response = openai_client.chat.completions.create(
                     model="gpt-4-turbo",
                     messages=[
@@ -292,6 +272,10 @@ def add_dashboard(df):
 
             except Exception as e:
                 st.warning(f"토픽 요약 생성 실패: {e}")
+
+    else:
+        st.info("⚠️ 선택된 회차에 대한 LDA 모델링을 위한 충분한 데이터가 없습니다.")
+
 
             
 # ✅ 인증 및 회의록 선택
