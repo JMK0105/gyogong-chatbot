@@ -242,35 +242,35 @@ def add_dashboard(df):
     st.subheader("🧠 전체 회차 누적 데이터 LDA 분석")
     # 누적 데이터를 기반으로 LDA 분석 실행
     if selected_indexes:
-    selected_texts = df.loc[selected_indexes, "분석텍스트"].apply(clean_korean_text).tolist()
-    dictionary = corpora.Dictionary(selected_texts)
-    corpus = [dictionary.doc2bow(text) for text in selected_texts]
+        selected_texts = df.loc[selected_indexes, "분석텍스트"].apply(clean_korean_text).tolist()
+        dictionary = corpora.Dictionary(selected_texts)
+        corpus = [dictionary.doc2bow(text) for text in selected_texts]
 
-    if len(dictionary) > 0 and len(corpus) > 0:
-        lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=3, random_state=42)
+        if len(dictionary) > 0 and len(corpus) > 0:
+            lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=3, random_state=42)
 
-        topic_keywords = []
-        for i in range(3):
-            for word, prob in lda_model.show_topic(i, topn=5):
-                topic_keywords.append({"토픽": f"토픽 {i+1}", "키워드": word, "확률": prob})
-
-        topic_df = pd.DataFrame(topic_keywords)
-        chart = alt.Chart(topic_df).mark_bar().encode(
-            x=alt.X("토픽:N", title="토픽"),
-            y=alt.Y("확률:Q", title="비중"),
-            color=alt.Color("키워드:N"),
-            tooltip=["토픽", "키워드", "확률"]
-        ).properties(width=700, height=400)
-        st.altair_chart(chart, use_container_width=True)
-
-        # ✅ GPT 요약 생성
-        try:
-            topic_summaries = []
+            topic_keywords = []
             for i in range(3):
-                keywords = ", ".join([word for word, _ in lda_model.show_topic(i, topn=5)])
-                topic_summaries.append(f"토픽 {i+1}: {keywords}")
+                for word, prob in lda_model.show_topic(i, topn=5):
+                    topic_keywords.append({"토픽": f"토픽 {i+1}", "키워드": word, "확률": prob})
 
-            summary_prompt = f"""
+            topic_df = pd.DataFrame(topic_keywords)
+            chart = alt.Chart(topic_df).mark_bar().encode(
+                x=alt.X("토픽:N", title="토픽"),
+                y=alt.Y("확률:Q", title="비중"),
+                color=alt.Color("키워드:N"),
+                tooltip=["토픽", "키워드", "확률"]
+            ).properties(width=700, height=400)
+            st.altair_chart(chart, use_container_width=True)
+
+            # ✅ GPT 요약 생성
+            try:
+                topic_summaries = []
+                for i in range(3):
+                    keywords = ", ".join([word for word, _ in lda_model.show_topic(i, topn=5)])
+                    topic_summaries.append(f"토픽 {i+1}: {keywords}")
+
+                summary_prompt = f"""
 다음은 회의 내용에서 추출된 주요 토픽입니다.
 각 토픽은 자주 등장한 핵심 키워드들로 구성되어 있습니다:
 
@@ -279,19 +279,19 @@ def add_dashboard(df):
 이 키워드를 바탕으로 이 회의에서 어떤 주제가 논의되었는지 3줄로 간결하게 요약해주세요.
 항목마다 이모지를 붙여주세요.
 """
-            topic_response = openai_client.chat.completions.create(
-                model="gpt-4-turbo",
-                messages=[
-                    {"role": "system", "content": "당신은 교육 회의 내용을 요약하는 조력자입니다."},
-                    {"role": "user", "content": summary_prompt}
-                ]
-            )
-            summary_text = topic_response.choices[0].message.content
-            st.markdown("### 🧠 이번 회의에서 논의된 주제 요약")
-            st.info(summary_text)
+                topic_response = openai_client.chat.completions.create(
+                    model="gpt-4-turbo",
+                    messages=[
+                        {"role": "system", "content": "당신은 교육 회의 내용을 요약하는 조력자입니다."},
+                        {"role": "user", "content": summary_prompt}
+                    ]
+                )
+                summary_text = topic_response.choices[0].message.content
+                st.markdown("### 🧠 이번 회의에서 논의된 주제 요약")
+                st.info(summary_text)
 
-        except Exception as e:
-            st.warning(f"토픽 요약 생성 실패: {e}")
+            except Exception as e:
+                st.warning(f"토픽 요약 생성 실패: {e}")
 
             
 # ✅ 인증 및 회의록 선택
