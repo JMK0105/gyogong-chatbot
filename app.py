@@ -258,8 +258,8 @@ def add_dashboard(df):
                         topic_summaries.append(f"토픽 {i+1}: {keywords}")
 
                     summary_prompt = f"""
-다음은 회의 내용에서 LDA분석을 통해 추출된 주요 토픽입니다.
-각 토픽은 자주 등장한 핵심 키워드들로 구성되어 있습니다:
+다음은 실제 수업 사례가 포함된「에듀테크 활용 PBL 수업 실천법」연수을 설계하는 회의 내용에서 LDA분석을 통해 추출된 주요 토픽입니다.
+각 토픽은 회의록에서 의미있게 등장하는 핵심 키워드들로 구성되어 있습니다:
 
 {chr(10).join(topic_summaries)}
 
