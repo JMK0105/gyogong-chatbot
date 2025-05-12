@@ -13,3 +13,4 @@ seaborn
 altair
 fpdf
 wordcloud
+gensim
