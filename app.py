@@ -171,82 +171,85 @@ def add_dashboard(df):
 
     df["분석텍스트"] = df["전체 회의록"].fillna("")
 
-    st.subheader("🔍 회차별 핵심 키워드 & 키워드 변화 추이")
-    col1, col2 = st.columns([1, 1.5])
+    # 1️⃣ 워드클라우드 & 키워드 변화 추이
+    with st.expander("🔍 회차별 핵심 키워드 & 키워드 변화 추이", expanded=False):
+        col1, col2 = st.columns([1, 1.5])
 
-    with col1:
-        if len(df) > 0:
-            if len(df) == 1:
-                selected_idx = 0
-            else:
-                selected_idx = st.slider("WordCloud 회차 선택", 0, len(df) - 1, 0, key="wordcloud_slider")
-            text = " ".join(clean_korean_text(df.iloc[selected_idx]["분석텍스트"]))
-            if not text.strip():
-                st.info("⚠️ 해당 회차에는 표시할 키워드가 충분하지 않습니다.")
-            else:
-                wordcloud = WordCloud(
-                    font_path="fonts/malgun.ttf",
-                    background_color='white',
-                    width=600,
-                    height=400,
-                    max_words=50,
-                    max_font_size=90,
-                    prefer_horizontal=0.9,
-                    colormap='Dark2'
-                ).generate(text)
-                fig1, ax1 = plt.subplots(figsize=(6, 4))
-                ax1.imshow(wordcloud, interpolation='bilinear')
-                ax1.axis("off")
-                st.pyplot(fig1)
+        with col1:
+            if len(df) > 0:
+                if len(df) == 1:
+                    selected_idx = 0
+                else:
+                    selected_idx = st.slider("WordCloud 회차 선택", 0, len(df) - 1, 0, key="wordcloud_slider")
+                text = " ".join(clean_korean_text(df.iloc[selected_idx]["분석텍스트"]))
+                if not text.strip():
+                    st.info("⚠️ 해당 회차에는 표시할 키워드가 충분하지 않습니다.")
+                else:
+                    wordcloud = WordCloud(
+                        font_path="fonts/malgun.ttf",
+                        background_color='white',
+                        width=600,
+                        height=400,
+                        max_words=50,
+                        max_font_size=90,
+                        prefer_horizontal=0.9,
+                        colormap='Dark2'
+                    ).generate(text)
+                    fig1, ax1 = plt.subplots(figsize=(6, 4))
+                    ax1.imshow(wordcloud, interpolation='bilinear')
+                    ax1.axis("off")
+                    st.pyplot(fig1)
 
-    with col2:
-        tokenized = df["분석텍스트"].apply(clean_korean_text)
-        all_words = [word for row in tokenized for word in row if len(word) <= 6]
-        top_keywords = [kw for kw, _ in Counter(all_words).most_common(5)]
-        trend_data = [[row.count(kw) for kw in top_keywords] for row in tokenized]
-        trend_df = pd.DataFrame(trend_data, columns=top_keywords)
-        trend_df["회차"] = df["회의록 제목"].fillna("").apply(lambda x: x if x.strip() else "무제 회의")
-        trend_df_melted = trend_df.melt(id_vars="회차", var_name="키워드", value_name="빈도")
+        with col2:
+            tokenized = df["분석텍스트"].apply(clean_korean_text)
+            all_words = [word for row in tokenized for word in row if len(word) <= 6]
+            top_keywords = [kw for kw, _ in Counter(all_words).most_common(5)]
+            trend_data = [[row.count(kw) for kw in top_keywords] for row in tokenized]
+            trend_df = pd.DataFrame(trend_data, columns=top_keywords)
+            trend_df["회차"] = df["회의록 제목"].fillna("").apply(lambda x: x if x.strip() else "무제 회의")
+            trend_df_melted = trend_df.melt(id_vars="회차", var_name="키워드", value_name="빈도")
 
-        chart = alt.Chart(trend_df_melted).mark_line(point=True).encode(
-            x=alt.X("회차:N", title="회차", axis=alt.Axis(labelAngle=0)),
-            y=alt.Y("빈도:Q", title="등장 빈도", scale=alt.Scale(domain=[0, trend_df_melted["빈도"].max() + 1])),
-            color="키워드:N"
-        ).properties(width=500, height=300)
-        st.altair_chart(chart, use_container_width=True)
-
-    st.subheader("🧠 전체 회차 누적 데이터 LDA 분석")
-    selected_indexes = st.multiselect("분석할 회차 선택", df.index, format_func=lambda i: df.loc[i, "회의록 제목"] or f"{i+1}회차")
-
-    if selected_indexes:
-        selected_texts = df.loc[selected_indexes, "분석텍스트"].apply(clean_korean_text).tolist()
-        dictionary = corpora.Dictionary(selected_texts)
-        corpus = [dictionary.doc2bow(text) for text in selected_texts]
-
-        if len(dictionary) > 0 and len(corpus) > 0:
-            lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=3, random_state=42)
-            topic_keywords = []
-            for i in range(3):
-                for word, prob in lda_model.show_topic(i, topn=5):
-                    topic_keywords.append({"토픽": f"토픽 {i+1}", "키워드": word, "확률": prob})
-
-            topic_df = pd.DataFrame(topic_keywords)
-            chart = alt.Chart(topic_df).mark_bar().encode(
-                x=alt.X("토픽:N", title="토픽"),
-                y=alt.Y("확률:Q", title="비중"),
-                color=alt.Color("키워드:N"),
-                tooltip=["토픽", "키워드", "확률"]
-            ).properties(width=700, height=400)
+            chart = alt.Chart(trend_df_melted).mark_line(point=True).encode(
+                x=alt.X("회차:N", title="회차", axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("빈도:Q", title="등장 빈도", scale=alt.Scale(domain=[0, trend_df_melted["빈도"].max() + 1])),
+                color="키워드:N"
+            ).properties(width=500, height=300)
             st.altair_chart(chart, use_container_width=True)
 
-            # ✅ GPT 요약 생성
-            try:
-                topic_summaries = []
-                for i in range(3):
-                    keywords = ", ".join([word for word, _ in lda_model.show_topic(i, topn=5)])
-                    topic_summaries.append(f"토픽 {i+1}: {keywords}")
+    # 2️⃣ LDA 분석 & 요약
+    with st.expander("🧠 전체 회차 누적 데이터 LDA 분석", expanded=False):
+        selected_indexes = st.multiselect("분석할 회차 선택", df.index, format_func=lambda i: df.loc[i, "회의록 제목"] or f"{i+1}회차")
 
-                summary_prompt = f"""
+        if selected_indexes:
+            selected_texts = df.loc[selected_indexes, "분석텍스트"].apply(clean_korean_text).tolist()
+            dictionary = corpora.Dictionary(selected_texts)
+            corpus = [dictionary.doc2bow(text) for text in selected_texts]
+
+            if len(dictionary) > 0 and len(corpus) > 0:
+                lda_model = LdaModel(corpus=corpus, id2word=dictionary, num_topics=3, random_state=42)
+
+                topic_keywords = []
+                for i in range(3):
+                    for word, prob in lda_model.show_topic(i, topn=5):
+                        topic_keywords.append({"토픽": f"토픽 {i+1}", "키워드": word, "확률": prob})
+
+                topic_df = pd.DataFrame(topic_keywords)
+                chart = alt.Chart(topic_df).mark_bar().encode(
+                    x=alt.X("토픽:N", title="토픽"),
+                    y=alt.Y("확률:Q", title="비중"),
+                    color=alt.Color("키워드:N"),
+                    tooltip=["토픽", "키워드", "확률"]
+                ).properties(width=700, height=400)
+                st.altair_chart(chart, use_container_width=True)
+
+                # 3️⃣ GPT 요약
+                try:
+                    topic_summaries = []
+                    for i in range(3):
+                        keywords = ", ".join([word for word, _ in lda_model.show_topic(i, topn=5)])
+                        topic_summaries.append(f"토픽 {i+1}: {keywords}")
+
+                    summary_prompt = f"""
 다음은 회의 내용에서 LDA분석을 통해 추출된 주요 토픽입니다.
 각 토픽은 자주 등장한 핵심 키워드들로 구성되어 있습니다:
 
@@ -256,25 +259,24 @@ def add_dashboard(df):
 항목마다 이모지를 붙여주세요.
 """
 
-                from openai import OpenAI
-                openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+                    openai_client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-                topic_response = openai_client.chat.completions.create(
-                    model="gpt-4-turbo",
-                    messages=[
-                        {"role": "system", "content": "당신은 교육 회의 내용을 요약하는 조력자입니다."},
-                        {"role": "user", "content": summary_prompt}
-                    ]
-                )
-                summary_text = topic_response.choices[0].message.content
-                st.markdown("### 🧠 이번 회의에서 논의된 주제 요약")
-                st.info(summary_text)
+                    topic_response = openai_client.chat.completions.create(
+                        model="gpt-4-turbo",
+                        messages=[
+                            {"role": "system", "content": "당신은 교육 회의 내용을 요약하는 조력자입니다."},
+                            {"role": "user", "content": summary_prompt}
+                        ]
+                    )
+                    summary_text = topic_response.choices[0].message.content
+                    st.markdown("### 🧠 이번 회의에서 논의된 주제 요약")
+                    st.info(summary_text)
 
-            except Exception as e:
-                st.warning(f"토픽 요약 생성 실패: {e}")
+                except Exception as e:
+                    st.warning(f"토픽 요약 생성 실패: {e}")
 
-    else:
-        st.info("⚠️ 선택된 회차에 대한 LDA 모델링을 위한 충분한 데이터가 없습니다.")
+        else:
+            st.info("⚠️ 선택된 회차에 대한 LDA 모델링을 위한 충분한 데이터가 없습니다.")
 
 
             
