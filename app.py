@@ -264,7 +264,40 @@ def add_dashboard(df):
             ).properties(width=700, height=400)
 
             st.altair_chart(chart, use_container_width=True)
+            
+# ✅ GPT를 이용한 토픽 요약 생성 (세 줄 요약)
+if openai_client:
+    topic_summaries = []
+    for i in range(3):
+        keywords = ", ".join([word for word, _ in lda_model.show_topic(i, topn=5)])
+        topic_summaries.append(f"토픽 {i+1}: {keywords}")
 
+    summary_prompt = f"""
+다음은 회의 내용에서 LDA분석을 통해 추출된 주요 토픽입니다.
+각 토픽은 자주 등장한 핵심 키워드들로 구성되어 있습니다:
+
+{chr(10).join(topic_summaries)}
+
+이 키워드를 바탕으로 이 회의에서 어떤 주제가 논의되었는지 3줄로 간결하게 요약해주세요.
+항목마다 이모지를 붙여주세요.
+"""
+    try:
+        topic_response = openai_client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[
+                {"role": "system", "content": "당신은 교육 회의 내용을 요약하는 조력자입니다."},
+                {"role": "user", "content": summary_prompt}
+            ]
+        )
+        summary_text = topic_response.choices[0].message.content
+        st.markdown("### 🧠 이번 회의에서 논의된 주제 요약")
+        st.info(summary_text)
+
+    except Exception as e:
+        st.warning(f"토픽 요약 생성 실패: {e}")
+
+
+    
     else:
         st.info("⚠️ 선택된 회차에 대한 LDA 모델링을 위한 충분한 데이터가 없습니다.")
             
