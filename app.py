@@ -384,14 +384,26 @@ if st.session_state.authenticated:
             finally:
                 st.session_state.button_disabled = False
 
+       
+
+        class UnicodePDF(FPDF):
+            def __init__(self):
+                super().__init__()
+                self.add_page()
+                self.add_font("malgun", "", "fonts/malgun.ttf", uni=True)  # ✅ 폰트 경로는 직접 추가해야 함
+                self.set_font("malgun", size=12)
+
+            def add_text(self, text):
+                for line in text.split('\n'):
+                    self.multi_cell(0, 10, line)
+
+
+        
         if st.session_state.result_text:
             if st.button("📄 분석 결과 PDF로 저장"):
                 filename = f"{selected_file}_분석결과.pdf"
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", size=12)
-                for line in st.session_state.result_text.split('\n'):
-                    pdf.multi_cell(0, 10, line)
+                pdf = UnicodePDF()
+                pdf.add_text(st.session_state.result_text)
                 pdf.output(filename)
                 with open(filename, "rb") as f:
                     st.download_button("⬇️ PDF 다운로드", f, file_name=filename)
