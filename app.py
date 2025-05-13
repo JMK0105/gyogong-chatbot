@@ -64,18 +64,18 @@ st.set_page_config(page_title="교공이", layout="centered")
 st.title("🤖 교공이 챗봇")
 
 team_codes = {
-    "팀test": "2025", "A팀": "2026", "B팀": "2024", "C팀": "2023", "D팀": "2022",
-    "E팀": "2021", "F팀": "2020"
+    "팀test": "2025", "AESPA팀": "bemyae", "쎔플팀": "604", "삼삼오오팀": "3355", "피원에듀포팀": "R801",
+    "상명서당팀": "qwer1234", "NCT팀": "nct127**"
 }
 
 folder_ids = {
     "팀test": "1-9vL1B5O2LoS1uyBzPK3Y6kIfOSKG-Fo",
-    "A팀": "1xdm-vXZ-bjch2bQWgHZ_GuQ8VjguCCaD",
-    "B팀": "1BFqy-38ZOFEvxvqPBwRo5-SOaVSoK-oL",
-    "C팀": "1Ey9nh0vICcDOtQrIQg0XbLEehqNIShYb",
-    "D팀": "1kAb13Qipe-0xw2o6WbLXLi2xrcqjuxoc",
-    "E팀": "1dkSXOSTMDewbt0oGj-FZvWHPCFpTe8vK",
-    "F팀": "17C8Yfjvr8d3kR1XLJtjfcx80xBjaON1p"
+    "AESPA팀": "1xdm-vXZ-bjch2bQWgHZ_GuQ8VjguCCaD",
+    "쎔플팀": "1BFqy-38ZOFEvxvqPBwRo5-SOaVSoK-oL",
+    "삼삼오오팀": "1Ey9nh0vICcDOtQrIQg0XbLEehqNIShYb",
+    "피원에듀포팀": "1kAb13Qipe-0xw2o6WbLXLi2xrcqjuxoc",
+    "상명서당팀": "1dkSXOSTMDewbt0oGj-FZvWHPCFpTe8vK",
+    "NCT팀": "17C8Yfjvr8d3kR1XLJtjfcx80xBjaON1p"
 }
 
 for key in ["authenticated", "team_name", "meeting_text", "result_text", "selected_file"]:
