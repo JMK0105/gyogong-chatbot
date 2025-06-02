@@ -323,6 +323,10 @@ if st.session_state.authenticated:
         st.error(f"❌ 팀 '{team_name}'에 대한 폴더 ID가 없습니다.")
         st.stop()
 
+    # 분석 후 저장 시, 아래처럼 처리
+    saved_team_name = "관리자" if st.session_state.is_admin else team_name
+    save_to_sheet(gc, saved_team_name, selected_file, parsed, meeting_text)
+
     creds_info = json.loads(st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"])
     scopes = [
         'https://www.googleapis.com/auth/spreadsheets',
