@@ -400,7 +400,8 @@ if st.session_state.authenticated:
                         # ✅ 이미 동일한 제목+본문이 저장된 경우 저장 생략
                             already_saved = team_df[
                                 (team_df["회의록 제목"] == selected_file) &
-                                (team_df["전체 회의록"] == meeting_text)
+                                (team_df["전체 회의록"] == meeting_text) &
+                                (team_df["팀명"] == saved_team_name)
                             ]
                     
                         if not already_saved.empty:
