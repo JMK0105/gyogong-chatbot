@@ -309,20 +309,19 @@ if code_input:
         else:
             st.error("❌ 잘못된 팀 코드입니다.")
 
-# ✅ 인증 후 처리
 if st.session_state.authenticated:
+    # 관리자 모드면 선택한 팀이 있고, 일반 사용자는 고정된 팀이 있음
     if st.session_state.is_admin:
-        st.warning("🔐 현재 관리자 모드로 모든 팀의 회의록에 접근 중입니다.")
         team_name = st.selectbox("📁 분석할 팀 선택", list(folder_ids.keys()))
     else:
         team_name = st.session_state.team_name
 
-    folder_id = folder_ids[team_name]
-
-# ✅ 본문 실행 로직
-if st.session_state.authenticated:
-    team_name = st.session_state.team_name
-    folder_id = folder_ids[team_name]
+    # 팀명에 해당하는 folder_id 설정
+    if team_name in folder_ids:
+        folder_id = folder_ids[team_name]
+    else:
+        st.error(f"❌ 팀 '{team_name}'에 대한 폴더 ID가 없습니다.")
+        st.stop()
 
     creds_info = json.loads(st.secrets["google"]["GOOGLE_SERVICE_ACCOUNT"])
     scopes = [
