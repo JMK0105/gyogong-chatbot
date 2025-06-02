@@ -63,6 +63,9 @@ SYSTEM_PROMPT = """
 st.set_page_config(page_title="교공이", layout="centered")
 st.title("🤖 교공이 챗봇")
 
+# ✅ 관리자 코드 설정
+ADMIN_CODE = "admin1234"
+
 team_codes = {
     "팀test": "2025", "AESPA팀": "bemyae", "쎔플팀": "0604", "삼삼오오팀": "3355", "피원에듀포팀": "R801",
     "상명서당팀": "qwer1234", "NCT팀": "nct127**"
@@ -291,11 +294,30 @@ def add_dashboard(df):
 # ✅ 인증 및 회의록 선택
 code_input = st.text_input("✅ 팀 코드를 입력하세요", type="password")
 if code_input:
-    team_name = next((team for team, code in team_codes.items() if code_input == code), None)
-    if team_name:
+    if code_input == ADMIN_CODE:
         st.session_state.authenticated = True
-        st.session_state.team_name = team_name
-        st.success(f"🎉 인증 완료: {team_name}")
+        st.session_state.is_admin = True
+        st.session_state.team_name = "관리자"
+        st.success("🎉 관리자 권한으로 로그인되었습니다.")
+    else:
+        team_name = next((team for team, code in team_codes.items() if code_input == code), None)
+        if team_name:
+            st.session_state.authenticated = True
+            st.session_state.team_name = team_name
+            st.session_state.is_admin = False
+            st.success(f"🎉 인증 완료: {team_name}")
+        else:
+            st.error("❌ 잘못된 팀 코드입니다.")
+
+# ✅ 인증 후 처리
+if st.session_state.authenticated:
+    if st.session_state.is_admin:
+        st.warning("🔐 현재 관리자 모드로 모든 팀의 회의록에 접근 중입니다.")
+        team_name = st.selectbox("📁 분석할 팀 선택", list(folder_ids.keys()))
+    else:
+        team_name = st.session_state.team_name
+
+    folder_id = folder_ids[team_name]
 
 # ✅ 본문 실행 로직
 if st.session_state.authenticated:
