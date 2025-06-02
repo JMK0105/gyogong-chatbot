@@ -395,6 +395,7 @@ if st.session_state.authenticated:
 
                     parsed = extract_structured_feedback(result_text)
                     if parsed:
+                        saved_team_name = "관리자" if st.session_state.is_admin else team_name  # ✅ 먼저 정의
                         already_saved = pd.DataFrame()
                         if not team_df.empty:
                         # ✅ 이미 동일한 제목+본문이 저장된 경우 저장 생략
@@ -407,7 +408,6 @@ if st.session_state.authenticated:
                         if not already_saved.empty:
                             st.info(f"✅ 동일한 회의록 내용을 분석한 이력이 있습니다.")
                         else:
-                            saved_team_name = "관리자" if st.session_state.is_admin else team_name
                             if save_to_sheet(gc, saved_team_name, selected_file, parsed, meeting_text):
                                 st.success("📌 회의록 내용이 확인되었습니다.")
                         display_summary_feedback(parsed)
