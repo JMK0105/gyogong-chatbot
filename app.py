@@ -45,19 +45,12 @@ SYSTEM_PROMPT = """
 
 [응답 형식 예시]
 역할 정리:
-...
 자기조절:
-...
 메타인지:
-...
 정서적 피드백:
-...
 개선 제안:
-...
 진행 요약:
-...
 다음 회의 제안:
-...
 """
 
 st.set_page_config(page_title="교공이", layout="centered")
@@ -501,4 +494,5 @@ if st.session_state.authenticated:
                pdf.output(filename)
                with open(filename, "rb") as f:
                    st.download_button("⬇️ PDF 다운로드", f, file_name=filename) 
+
 
